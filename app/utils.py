@@ -4,9 +4,7 @@ Utils.
 import mlflow
 
 
-def get_model(
-    model_name: str, model_version: str
-) -> mlflow.pyfunc.PyFuncModel:
+def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
     """
     This function fetches a trained machine learning model from the MLflow
     model registry based on the specified model name and version.
@@ -24,9 +22,7 @@ def get_model(
     """
 
     try:
-        model = mlflow.pyfunc.load_model(
-            model_uri=f"models:/{model_name}/{model_version}"
-        )
+        model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
         return model
     except Exception as error:
         raise Exception(

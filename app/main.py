@@ -3,9 +3,8 @@ Main file for the API.
 """
 import os
 from contextlib import asynccontextmanager
-from typing import List, Dict
+from typing import Dict
 from fastapi import FastAPI
-from pydantic import BaseModel
 
 from app.utils import (
     get_model,
@@ -67,7 +66,7 @@ async def predict(
 
         Dict: Response containing mask of prediction.
     """
-
+    query = "placeholder"
     predictions = model.predict(query)
 
     return predictions

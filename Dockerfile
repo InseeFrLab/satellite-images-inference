@@ -1,4 +1,4 @@
-FROM python:3.12
+FROM inseefrlab/onyxia-python-pytorch:py3.11.6
 
 ENV TIMEOUT=300
 # set api as the current work dir

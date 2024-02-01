@@ -1,0 +1,49 @@
+# Creating MLflow deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: satellite-images-model-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: satellite-images-model-deployment
+  template:
+    metadata:
+      labels:
+        app: satellite-images-model-deployment
+    spec:
+      containers:
+        - name: satellite-images-app
+          image: inseefrlab/satellite-images-inference:v0.0.1
+          imagePullPolicy: Always
+          env:
+            # env var for s3 connexion
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: https://minio.lab.sspcloud.fr
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: accessKey
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: secretKey
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            # env var for setting mlflow model registry server
+            - name: MLFLOW_TRACKING_URI
+              value: https://projet-slums-detection-128833.user.lab.sspcloud.fr
+            # env var for setting models uri which will be deployed
+            - name: MLFLOW_MODEL_NAME
+              value: Segmentation
+            - name: MLFLOW_MODEL_VERSION
+              value: "1"
+          resources:
+            limits:
+              memory: "20Gi"
+              cpu: "2000m"
+          workers: 10
+          workerTimeout: 600

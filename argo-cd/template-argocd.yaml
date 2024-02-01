@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: satellite-images-inference-api
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/InseeFrLab/satellite-images-inference.git
+    targetRevision: HEAD
+    path: deployment
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: projet-slums-detection
+  syncPolicy:
+    automated:
+      selfHeal: true

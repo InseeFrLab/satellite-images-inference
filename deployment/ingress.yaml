@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: satellite-images-model-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "360"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "360"
+spec:
+  tls:
+    - hosts:
+        - satellite-images-inference.lab.sspcloud.fr
+  rules:
+    - host: satellite-images-inference.lab.sspcloud.fr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: satellite-images-model-service
+                port:
+                  number: 80

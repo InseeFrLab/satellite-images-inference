@@ -1,6 +1,9 @@
 #!/bin/bash
 git config --global credential.helper store
 
+mamba install -c conda-forge gdal -y
+export PROJ_LIB=/opt/mamba/share/proj
+
 pip install -r requirements.txt
 pre-commit install
 

@@ -8,7 +8,9 @@ WORKDIR /api
 COPY requirements.txt requirements.txt
 
 # install all the requirements
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN mamba install -c conda-forge gdal -y &&\
+    export PROJ_LIB=/opt/mamba/share/proj &&\
+    pip install --no-cache-dir --upgrade -r requirements.txt
 
 # copy the main code of fastapi
 COPY ./app /api/app

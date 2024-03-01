@@ -59,22 +59,26 @@ async def predict(
     image: str,
 ) -> Dict:
     """
-
+    Predicts mask for a given satellite image.
 
     Args:
-
-        images (str): S3 path of an image
+        image (str): S3 path of the satellite image.
 
     Returns:
-
         Dict: Response containing mask of prediction.
     """
+    # Retrieve satellite image
     si = get_satellite_image(model, image)
 
+    # Preprocess the image
     normalized_si = preprocess_image(model=model, image=si)
 
+    # Make prediction using the model
     prediction = torch.tensor(model.predict(normalized_si.numpy()))
 
+    # Produce mask from prediction
     mask = produce_mask(prediction, model, si.array.shape[-2:])
+
+    # Convert mask to list and return as a dictionnary
     return {"mask": mask.tolist()}
     # arr = np.asarray(json.loads(resp.json()))  # resp.json() if using Python requests

@@ -38,9 +38,11 @@ spec:
               value: https://projet-slums-detection-128833.user.lab.sspcloud.fr
             # env var for setting models uri which will be deployed
             - name: MLFLOW_MODEL_NAME
-              value: Segmentation
+              value: test
             - name: MLFLOW_MODEL_VERSION
-              value: "1"
+              value: "13"
+            - name: MLFLOW_ENABLE_ARTIFACTS_PROGRESS_BAR
+              value: "false"
           resources:
             limits:
               memory: "20Gi"

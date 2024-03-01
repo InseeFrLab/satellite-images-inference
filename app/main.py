@@ -5,9 +5,12 @@ import os
 from contextlib import asynccontextmanager
 from typing import Dict
 from fastapi import FastAPI
-
+import torch
 from app.utils import (
     get_model,
+    get_satellite_image,
+    preprocess_image,
+    produce_mask,
 )
 
 
@@ -66,7 +69,12 @@ async def predict(
 
         Dict: Response containing mask of prediction.
     """
-    query = "placeholder"
-    predictions = model.predict(query)
+    si = get_satellite_image(model, image)
 
-    return predictions
+    normalized_si = preprocess_image(model=model, image=si)
+
+    prediction = torch.tensor(model.predict(normalized_si.numpy()))
+
+    mask = produce_mask(prediction, model, si.array.shape[-2:])
+    return {"mask": mask.tolist()}
+    # arr = np.asarray(json.loads(resp.json()))  # resp.json() if using Python requests

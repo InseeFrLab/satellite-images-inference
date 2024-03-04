@@ -1,13 +1,16 @@
 """
 Utils.
 """
-import mlflow
-import yaml
-from astrovision.data import SatelliteImage
+
 import albumentations as A
-from albumentations.pytorch.transforms import ToTensorV2
+import mlflow
 import numpy as np
 import torch
+import yaml
+
+from albumentations.pytorch.transforms import ToTensorV2
+from astrovision.data import SatelliteImage
+from typing import List
 
 
 def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
@@ -87,7 +90,12 @@ def get_satellite_image(image_path: str, n_bands: int):
 
 
 def get_transform(
-    model: mlflow.pyfunc.PyFuncModel, tiles_size: int, augment_size: int, n_bands: int
+    model: mlflow.pyfunc.PyFuncModel,
+    tiles_size: int,
+    augment_size: int,
+    n_bands: int,
+    normalization_mean: List[float],
+    normalization_std: List[float],
 ):
     """
     Retrieves the transformation pipeline for image preprocessing.
@@ -96,13 +104,13 @@ def get_transform(
         model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
         tiles_size (int): Size of the satellite image.
         augment_size (int): .
+        n_bands: (int): .
+        normalization_mean List[float]: .
+        normalization_std List[float]: .
 
     Returns:
         albumentations.Compose: A composition of image transformations.
     """
-    # Retrieve normalization metrics
-    normalization_mean, normalization_std = get_normalization_metrics(model, n_bands)
-
     # Define the transformation pipeline
     transform_list = [
         A.Normalize(
@@ -128,6 +136,8 @@ def preprocess_image(
     tiles_size: int,
     augment_size: int,
     n_bands: int,
+    normalization_mean: List[float],
+    normalization_std: List[float],
 ):
     """
     Preprocesses a satellite image using the specified model.
@@ -141,7 +151,9 @@ def preprocess_image(
         torch.Tensor: Normalized and preprocessed image tensor.
     """
     # Obtain transformation pipeline
-    transform = get_transform(model, tiles_size, augment_size, n_bands)
+    transform = get_transform(
+        model, tiles_size, augment_size, n_bands, normalization_mean, normalization_std
+    )
 
     # Apply transformation to image
     normalized_si = transform(image=np.transpose(image.array, [1, 2, 0]))["image"].unsqueeze(dim=0)

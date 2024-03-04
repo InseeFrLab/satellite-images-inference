@@ -21,6 +21,8 @@ spec:
             # env var for s3 connexion
             - name: MLFLOW_S3_ENDPOINT_URL
               value: https://minio.lab.sspcloud.fr
+            - name: AWS_S3_ENDPOINT
+              value: minio.lab.sspcloud.fr
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:

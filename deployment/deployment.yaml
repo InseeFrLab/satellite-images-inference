@@ -15,12 +15,14 @@ spec:
     spec:
       containers:
         - name: satellite-images-app
-          image: inseefrlab/satellite-images-inference:v0.0.1
+          image: inseefrlab/satellite-images-inference:v0.0.3
           imagePullPolicy: Always
           env:
             # env var for s3 connexion
             - name: MLFLOW_S3_ENDPOINT_URL
               value: https://minio.lab.sspcloud.fr
+            - name: AWS_S3_ENDPOINT
+              value: minio.lab.sspcloud.fr
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -38,9 +40,11 @@ spec:
               value: https://projet-slums-detection-128833.user.lab.sspcloud.fr
             # env var for setting models uri which will be deployed
             - name: MLFLOW_MODEL_NAME
-              value: Segmentation
+              value: test
             - name: MLFLOW_MODEL_VERSION
-              value: "1"
+              value: "13"
+            - name: MLFLOW_ENABLE_ARTIFACTS_PROGRESS_BAR
+              value: "false"
           resources:
             limits:
               memory: "20Gi"

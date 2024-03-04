@@ -19,4 +19,4 @@ spec:
               service:
                 name: satellite-images-model-service
                 port:
-                  number: 80
+                  number: 8000

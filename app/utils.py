@@ -36,19 +36,17 @@ def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
         ) from error
 
 
-def get_normalization_metrics(model: mlflow.pyfunc.PyFuncModel):
+def get_normalization_metrics(model: mlflow.pyfunc.PyFuncModel, n_bands: int):
     """
     Retrieves normalization metrics (mean and standard deviation) for the model.
 
     Args:
         model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
+        n_bands (int): Number of bands in the satellite image.
 
     Returns:
         Tuple: A tuple containing normalization mean and standard deviation.
     """
-    # Extract number of bands from model metadata
-    n_bands = int(mlflow.get_run(model.metadata.run_id).data.params["n_bands"])
-
     # Load normalization parameters from metrics-normalization.yaml
     params = yaml.safe_load(
         mlflow.artifacts.load_text(
@@ -66,19 +64,17 @@ def get_normalization_metrics(model: mlflow.pyfunc.PyFuncModel):
     return (normalization_mean, normalization_std)
 
 
-def get_satellite_image(model: mlflow.pyfunc.PyFuncModel, image_path: str):
+def get_satellite_image(image_path: str, n_bands: int):
     """
     Retrieves a satellite image specified by its path.
 
     Args:
-        model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
         image_path (str): Path to the satellite image.
+        n_bands (int): Number of bands in the satellite image.
 
     Returns:
         SatelliteImage: An object representing the satellite image.
     """
-    # Extract number of bands from model metadata
-    n_bands = int(mlflow.get_run(model.metadata.run_id).data.params["n_bands"])
 
     # Load satellite image using the specified path and number of bands
     si = SatelliteImage.from_raster(
@@ -90,22 +86,22 @@ def get_satellite_image(model: mlflow.pyfunc.PyFuncModel, image_path: str):
     return si
 
 
-def get_transform(model: mlflow.pyfunc.PyFuncModel):
+def get_transform(
+    model: mlflow.pyfunc.PyFuncModel, tiles_size: int, augment_size: int, n_bands: int
+):
     """
     Retrieves the transformation pipeline for image preprocessing.
 
     Args:
         model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
+        tiles_size (int): Size of the satellite image.
+        augment_size (int): .
 
     Returns:
         albumentations.Compose: A composition of image transformations.
     """
-    # Extract tiles size and augment size from model metadata
-    tiles_size = int(mlflow.get_run(model.metadata.run_id).data.params["tiles_size"])
-    augment_size = int(mlflow.get_run(model.metadata.run_id).data.params["augment_size"])
-
     # Retrieve normalization metrics
-    normalization_mean, normalization_std = get_normalization_metrics(model)
+    normalization_mean, normalization_std = get_normalization_metrics(model, n_bands)
 
     # Define the transformation pipeline
     transform_list = [
@@ -126,19 +122,26 @@ def get_transform(model: mlflow.pyfunc.PyFuncModel):
     return transform
 
 
-def preprocess_image(model: mlflow.pyfunc.PyFuncModel, image: SatelliteImage):
+def preprocess_image(
+    model: mlflow.pyfunc.PyFuncModel,
+    image: SatelliteImage,
+    tiles_size: int,
+    augment_size: int,
+    n_bands: int,
+):
     """
     Preprocesses a satellite image using the specified model.
 
     Args:
         model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
         image (SatelliteImage): SatelliteImage object representing the input image.
-
+        tiles_size (int): Size of the satellite image.
+        augment_size (int): .
     Returns:
         torch.Tensor: Normalized and preprocessed image tensor.
     """
     # Obtain transformation pipeline
-    transform = get_transform(model)
+    transform = get_transform(model, tiles_size, augment_size, n_bands)
 
     # Apply transformation to image
     normalized_si = transform(image=np.transpose(image.array, [1, 2, 0]))["image"].unsqueeze(dim=0)
@@ -146,21 +149,21 @@ def preprocess_image(model: mlflow.pyfunc.PyFuncModel, image: SatelliteImage):
     return normalized_si
 
 
-def produce_mask(prediction: np.array, model: mlflow.pyfunc.PyFuncModel, image_size: tuple):
+def produce_mask(
+    prediction: np.array, model: mlflow.pyfunc.PyFuncModel, module_name: str, image_size: tuple
+):
     """
     Produces mask from prediction array based on the specified model.
 
     Args:
         prediction (np.array): Array containing the prediction.
         model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
+        module_name (str): Name of the module used for training.
         image_size (tuple): Size of the original image.
 
     Returns:
         np.array: Mask generated from prediction array.
     """
-    # Retrieve module name from model parameters
-    module_name = mlflow.get_run(model.metadata.run_id).data.params["module_name"]
-
     # Determine mask generation based on module name
     match module_name:
         case "deeplabv3":

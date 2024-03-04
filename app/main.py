@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Dict
 from fastapi import FastAPI
 import torch
+import mlflow
 from app.utils import (
     get_model,
     get_satellite_image,
@@ -23,12 +24,18 @@ async def lifespan(app: FastAPI):
     Args:
         app (FastAPI): The FastAPI application.
     """
-    global model
+    global model, n_bands, tiles_size, augment_size, module_name
 
     model_name: str = os.getenv("MLFLOW_MODEL_NAME")
     model_version: str = os.getenv("MLFLOW_MODEL_VERSION")
     # Load the ML model
     model = get_model(model_name, model_version)
+
+    # Extract several variables from model metadata
+    n_bands = int(mlflow.get_run(model.metadata.run_id).data.params["n_bands"])
+    tiles_size = int(mlflow.get_run(model.metadata.run_id).data.params["tiles_size"])
+    augment_size = int(mlflow.get_run(model.metadata.run_id).data.params["augment_size"])
+    module_name = mlflow.get_run(model.metadata.run_id).data.params["module_name"]
     yield
 
 
@@ -68,16 +75,18 @@ async def predict(
         Dict: Response containing mask of prediction.
     """
     # Retrieve satellite image
-    si = get_satellite_image(model, image)
+    si = get_satellite_image(image, n_bands)
 
     # Preprocess the image
-    normalized_si = preprocess_image(model=model, image=si)
+    normalized_si = preprocess_image(
+        model=model, image=si, tiles_size=tiles_size, augment_size=augment_size, n_bands=n_bands
+    )
 
     # Make prediction using the model
     prediction = torch.tensor(model.predict(normalized_si.numpy()))
 
     # Produce mask from prediction
-    mask = produce_mask(prediction, model, si.array.shape[-2:])
+    mask = produce_mask(prediction, model, module_name, si.array.shape[-2:])
 
     # Convert mask to list and return as a dictionnary
     return {"mask": mask.tolist()}

@@ -48,6 +48,6 @@ spec:
           resources:
             limits:
               memory: "20Gi"
-              cpu: "2000m"
+              cpu: "100"
           workers: 10
           workerTimeout: 600

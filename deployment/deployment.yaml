@@ -47,7 +47,10 @@ spec:
               value: "false"
           resources:
             limits:
+              memory: "50Gi"
+              cpu: "50000m"
+            requests:
               memory: "20Gi"
-              cpu: "100"
+              cpu: "100m"
           workers: 10
           workerTimeout: 600

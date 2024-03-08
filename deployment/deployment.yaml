@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: satellite-images-app
-          image: inseefrlab/satellite-images-inference:v0.0.3
+          image: inseefrlab/satellite-images-inference:v0.0.4
           imagePullPolicy: Always
           env:
             # env var for s3 connexion
@@ -42,7 +42,7 @@ spec:
             - name: MLFLOW_MODEL_NAME
               value: test
             - name: MLFLOW_MODEL_VERSION
-              value: "13"
+              value: "15"
             - name: MLFLOW_ENABLE_ARTIFACTS_PROGRESS_BAR
               value: "false"
           resources:

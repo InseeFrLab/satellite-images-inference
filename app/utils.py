@@ -6,7 +6,7 @@ import albumentations as A
 import mlflow
 import numpy as np
 import torch
-import yaml
+import json
 
 from albumentations.pytorch.transforms import ToTensorV2
 from astrovision.data import SatelliteImage
@@ -50,15 +50,14 @@ def get_normalization_metrics(model: mlflow.pyfunc.PyFuncModel, n_bands: int):
     Returns:
         Tuple: A tuple containing normalization mean and standard deviation.
     """
-    # Load normalization parameters from metrics-normalization.yaml
-    params = yaml.safe_load(
-        mlflow.artifacts.load_text(
-            f"{mlflow.get_run(model.metadata.run_id).info.artifact_uri}/metrics-normalization.yaml"
-        )
+    normalization_mean = json.loads(
+        mlflow.get_run(model.metadata.run_id).data.params["normalization_mean"]
+    )
+    normalization_std = json.loads(
+        mlflow.get_run(model.metadata.run_id).data.params["normalization_std"]
     )
 
     # Extract normalization mean and standard deviation for the number of bands
-    normalization_mean, normalization_std = params["mean"], params["std"]
     normalization_mean, normalization_std = (
         normalization_mean[:n_bands],
         normalization_std[:n_bands],
@@ -192,7 +191,7 @@ def produce_mask(
                 mode="bilinear",
                 align_corners=False,
             )
-            mask = interpolated_prediction.sigmoid() > 0.5
+            mask = torch.argmax(interpolated_prediction, dim=1).squeeze()
 
         case _:
             raise ValueError("Invalid module name specified.")

@@ -5,7 +5,8 @@ mamba install -c conda-forge gdal -y
 export PROJ_LIB=/opt/mamba/share/proj
 
 pip install -r requirements.txt
-pre-commit install
+
+
 
 AWS_ACCESS_KEY_ID=`vault kv get -field=ACCESS_KEY_ID onyxia-kv/projet-slums-detection/s3` && export AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY=`vault kv get -field=SECRET_ACCESS_KEY onyxia-kv/projet-slums-detection/s3` && export AWS_SECRET_ACCESS_KEY

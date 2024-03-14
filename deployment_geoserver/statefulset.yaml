@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind:  StatefulSet
+metadata:
+  name: kindlytoad
+spec:
+  serviceName: "kindlytoad"
+  selector:
+    matchLabels:
+      app: kindlytoad
+  replicas: 1
+  template: # je mets des labels sur les pods-> le déploiement donenra naissance à des pods auxquels le label nginxlabel1 sera donné
+    metadata:
+      labels:
+        app: kindlytoad
+    spec:
+      volumes:
+        - name: volumepartage # verif de la disponibilité de la pvc
+          persistentVolumeClaim:
+            claimName: espace-kindlytoad
+
+      containers:
+        - name: geoserver
+          image: docker.osgeo.org/geoserver:2.24.1
+          imagePullPolicy: Always # Je peux delete le pod pour qu'il aille chercher : la nouvelle image sur dockerhub

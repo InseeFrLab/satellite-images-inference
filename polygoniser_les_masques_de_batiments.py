@@ -1,14 +1,17 @@
 import requests
 import numpy as np
 from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
-import os
 from astrovision.plot import plot_images_with_segmentation_label
+import os
 from s3fs import S3FileSystem
 from osgeo import gdal, ogr, osr
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from rasterio.features import rasterize
-from shapely.geometry import Polygon
+from rasterio.features import rasterize, shapes
+from shapely.geometry import Polygon, shape
+import rasterio
+
+
 
 os.makedirs(
         "results/",
@@ -45,43 +48,42 @@ lsi = SegmentationLabeledSatelliteImage(
 plot = lsi.plot(bands_indices=[0, 1, 2])
 plot.savefig(f"results/plots/{filename}_api_result.png")
 
-# Polygoniser les amas de 1
+
+# Polygoniser les amas de 1 -> un amas de 1 = batiment
 array = lsi.label
-top_left_x, bottom_right_y, bottom_right_x, top_left_y = lsi.satellite_image.bounds
+left, __, __, top = lsi.satellite_image.bounds
 
-driver = gdal.GetDriverByName('GTiff')
-outRaster = driver.Create('temp.tif', 250, 250, 1, gdal.GDT_Byte)
-outRaster.GetRasterBand(1).WriteArray(array)
+array = array.astype(np.uint16)
 
-# (coin_x, taille_pixel_x, rotation_x, coin_y, rotation_y, taille_pixel_y)
-outRaster.SetGeoTransform((top_left_x, 0.5, 0, top_left_y, 0, -0.5))
+with rasterio.Env():
+    with rasterio.open('temp.tif', 'w+', driver='GTiff', 
+                       height=array.shape[0], width=array.shape[1],
+                       count=1, dtype=array.dtype, nodata=0,
+                       transform=rasterio.transform.from_origin(left, top, 0.5, 0.5)) as dst:
+        dst.write(array, 1)
 
-outShapefile = f"results/polygons/{filename}_polygons.shp"
-outDriver = ogr.GetDriverByName("ESRI Shapefile")
-outDataSource = outDriver.CreateDataSource(outShapefile)
-outLayer = outDataSource.CreateLayer("polygons", geom_type=ogr.wkbPolygon)
-idField = ogr.FieldDefn("id", ogr.OFTInteger)
-outLayer.CreateField(idField)
+        results = (
+            {'properties': {'raster_val': v}, 'geometry': s}
+            for i, (s, v) in enumerate(shapes(array, mask=None, transform=dst.transform))
+            if v == 1  # Conserver uniquement les amas de 1
+        )
 
-gdal.Polygonize(outRaster.GetRasterBand(1), None, outLayer, 0, [], callback=None)
-
-outRaster = None
-outDataSource = None
-
-gdf = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
-gdf_only_batiment = gdf[gdf['id'] != 0] # enlever le polygone qui represente les zones hors batiments
-gdf_only_batiment.to_file(f"results/polygons/{filename}_polygons.shp")
+gdf = gpd.GeoDataFrame.from_features(list(results))
+gdf.crs = lsi.satellite_image.crs
+gdf.to_parquet(f"results/polygons/{filename}_polygons.parquet")
 
 # supprimer le fichier temp.tif
 if os.path.exists('temp.tif'):
     os.remove('temp.tif')
 
+gdf = gpd.read_parquet(f"results/polygons/{filename}_polygons.parquet")
+print(gdf.head())
 
 
 # Afficher les polygones
-gdf_only_batiment = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
+gdf = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
 fig, ax = plt.subplots()
-ax = gdf_only_batiment.plot(facecolor='blue', edgecolor='black')
+ax = gdf.plot(facecolor='blue', edgecolor='black')
 plt.xticks([])
 plt.yticks([])
 plt.savefig(f'results/plots/{filename}_polygons.png')
@@ -94,7 +96,7 @@ fig, ax = plt.subplots()
 plt.imshow(np.transpose(lsi.satellite_image.array, (1, 2, 0))[:, :, [0, 1, 2]]
 , extent=[left, right, bottom, top])
 
-gdf_only_batiment.plot(ax=ax, facecolor='none', edgecolor='red')
+gdf.plot(ax=ax, facecolor='none', edgecolor='red')
 
 plt.xticks([])
 plt.yticks([])
@@ -105,7 +107,7 @@ plt.close()
 
 
 # aire des batiments
-union_bat = gdf_only_batiment['geometry'].unary_union
+union_bat = gdf['geometry'].unary_union
 
 total_area_bat = union_bat.area
 

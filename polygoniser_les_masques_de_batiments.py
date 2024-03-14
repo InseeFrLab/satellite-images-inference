@@ -68,6 +68,10 @@ gdal.Polygonize(outRaster.GetRasterBand(1), None, outLayer, 0, [], callback=None
 outRaster = None
 outDataSource = None
 
+gdf = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
+gdf_only_batiment = gdf[gdf['id'] != 0] # enlever le polygone qui represente les zones hors batiments
+gdf_only_batiment.to_file(f"results/polygons/{filename}_polygons.shp")
+
 # supprimer le fichier temp.tif
 if os.path.exists('temp.tif'):
     os.remove('temp.tif')
@@ -75,9 +79,7 @@ if os.path.exists('temp.tif'):
 
 
 # Afficher les polygones
-gdf = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
-gdf_only_batiment = gdf[gdf['id'] != 0] # enlever le polygone qui represente les zones hors batiments
-gdf_only_batiment.to_file(f"results/polygons/{filename}_polygons.shp")
+gdf_only_batiment = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
 fig, ax = plt.subplots()
 ax = gdf_only_batiment.plot(facecolor='blue', edgecolor='black')
 plt.xticks([])

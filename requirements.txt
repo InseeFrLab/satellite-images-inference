@@ -10,7 +10,7 @@ pre-commit==3.6.2
 boto3==1.34.23
 uvicorn==0.27.1
 pytorch_lightning==2.2.1
-astrovision==0.10.0
+astrovision==0.11.0
 albumentations==1.4.1
 transformers==4.37.2
 torchvision

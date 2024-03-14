@@ -20,5 +20,5 @@ spec:
 
       containers:
         - name: geoserver
-          image: docker.osgeo.org/geoserver:2.24.1
+          image: kartoza/geoserver:2.19.0
           imagePullPolicy: Always # Je peux delete le pod pour qu'il aille chercher : la nouvelle image sur dockerhub

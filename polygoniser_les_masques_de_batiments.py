@@ -8,6 +8,7 @@ from osgeo import gdal, ogr, osr
 import geopandas as gpd
 import matplotlib.pyplot as plt
 from rasterio.features import rasterize
+from shapely.geometry import Polygon
 
 os.makedirs(
         "results/",
@@ -55,7 +56,6 @@ outRaster.GetRasterBand(1).WriteArray(array)
 # (coin_x, taille_pixel_x, rotation_x, coin_y, rotation_y, taille_pixel_y)
 outRaster.SetGeoTransform((top_left_x, 0.5, 0, top_left_y, 0, -0.5))
 
-# Créer le fichier pour les polygones
 outShapefile = f"results/polygons/{filename}_polygons.shp"
 outDriver = ogr.GetDriverByName("ESRI Shapefile")
 outDataSource = outDriver.CreateDataSource(outShapefile)
@@ -63,17 +63,23 @@ outLayer = outDataSource.CreateLayer("polygons", geom_type=ogr.wkbPolygon)
 idField = ogr.FieldDefn("id", ogr.OFTInteger)
 outLayer.CreateField(idField)
 
-# Polygoniser
 gdal.Polygonize(outRaster.GetRasterBand(1), None, outLayer, 0, [], callback=None)
 
-# Fermer le fichier raster et shapefile
 outRaster = None
 outDataSource = None
 
+# supprimer le fichier temp.tif
+if os.path.exists('temp.tif'):
+    os.remove('temp.tif')
+
+
+
 # Afficher les polygones
 gdf = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
+gdf_only_batiment = gdf[gdf['id'] != 0] # enlever le polygone qui represente les zones hors batiments
+gdf_only_batiment.to_file(f"results/polygons/{filename}_polygons.shp")
 fig, ax = plt.subplots()
-ax = gdf.plot()
+ax = gdf_only_batiment.plot(facecolor='blue', edgecolor='black')
 plt.xticks([])
 plt.yticks([])
 plt.savefig(f'results/plots/{filename}_polygons.png')
@@ -86,7 +92,7 @@ fig, ax = plt.subplots()
 plt.imshow(np.transpose(lsi.satellite_image.array, (1, 2, 0))[:, :, [0, 1, 2]]
 , extent=[left, right, bottom, top])
 
-gdf.plot(ax=ax, facecolor='none', edgecolor='red')
+gdf_only_batiment.plot(ax=ax, facecolor='none', edgecolor='red')
 
 plt.xticks([])
 plt.yticks([])
@@ -94,3 +100,21 @@ plt.yticks([])
 plot = plt.gcf()
 plot.savefig(f'results/plots/{filename}_image_and_polygon.png')
 plt.close()
+
+
+# aire des batiments
+union_bat = gdf_only_batiment['geometry'].unary_union
+
+total_area_bat = union_bat.area
+
+# comme un pixel = 0.5*0.5m²
+total_area = lsi.satellite_image.array.shape[1]*0.5*lsi.satellite_image.array.shape[2]*0.5
+
+## ou on peut aussi faire le polygone image
+# polygon = Polygon([(left, bottom), (left, top), (right, top), (right, bottom), (left, bottom)])
+# tot = gpd.GeoDataFrame([1], geometry=[polygon], crs=lsi.satellite_image.crs)
+# total_area = tot.geometry.area
+# print(total_area)
+
+prop_bat = total_area_bat*100/total_area
+# 25.5 % de l'image est du bâtiment

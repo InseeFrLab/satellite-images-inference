@@ -70,18 +70,17 @@ with rasterio.Env():
 
 gdf = gpd.GeoDataFrame.from_features(list(results))
 gdf.crs = lsi.satellite_image.crs
-gdf.to_parquet(f"results/polygons/{filename}_polygons.parquet")
+gdf.to_parquet(f"results/polygons/{filename}_polygons-geo.parquet")
 
 # supprimer le fichier temp.tif
 if os.path.exists('temp.tif'):
     os.remove('temp.tif')
 
-gdf = gpd.read_parquet(f"results/polygons/{filename}_polygons.parquet")
+# Afficher les polygones
+
+gdf = gpd.read_parquet(f"results/polygons/{filename}_polygons-geo.parquet")
 print(gdf.head())
 
-
-# Afficher les polygones
-gdf = gpd.read_file(f"results/polygons/{filename}_polygons.shp")
 fig, ax = plt.subplots()
 ax = gdf.plot(facecolor='blue', edgecolor='black')
 plt.xticks([])

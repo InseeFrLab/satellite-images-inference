@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind:  StatefulSet
+kind: StatefulSet
 metadata:
   name: kindlytoad
 spec:
@@ -8,17 +8,34 @@ spec:
     matchLabels:
       app: kindlytoad
   replicas: 1
-  template: # je mets des labels sur les pods-> le déploiement donenra naissance à des pods auxquels le label nginxlabel1 sera donné
+  template:
     metadata:
       labels:
         app: kindlytoad
     spec:
       volumes:
-        - name: volumepartage # verif de la disponibilité de la pvc
+        - name: volumepartage
           persistentVolumeClaim:
             claimName: espace-kindlytoad
-
       containers:
         - name: geoserver
           image: kartoza/geoserver:2.19.0
-          imagePullPolicy: Always # Je peux delete le pod pour qu'il aille chercher : la nouvelle image sur dockerhub
+          imagePullPolicy: Always
+          volumeMounts: # This section specifies where the volume should be mounted inside the container
+            - name: volumepartage
+              mountPath: /opt/geoserver/data_dir # Replace this with the actual moun #/opt/geoserver_data
+
+      initContainers:
+        - name: downloadimages
+          image: minio/mc
+          imagePullPolicy: Always
+         
+          command: ["mc"]
+          args: ["cp","s3/cguillo/ilots_972.gpkg","dossierimage/ilots_972.gpkg"]
+          envFrom:
+          - secretRef:
+              name: env-secrets-kindlytoad
+          # On copie une image dans le volume en passant par le dossier img créé dans l'init docker pour l'occasion.
+          volumeMounts:
+            - mountPath: /dossierimage
+              name: volumepartage 

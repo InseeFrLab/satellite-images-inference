@@ -19,13 +19,13 @@ spec:
             claimName: espace-kindlytoad
       containers:
         - name: geoserver
-          image: kartoza/geoserver:2.19.0 # 2.19.0
+          image: kartoza/geoserver:2.23.1 # 2.19.0
           imagePullPolicy: Always
-          # env:
-          # - name: GEOSERVER_ADMIN_USER
-          #   value: admin
-          # - name: GEOSERVER_ADMIN_PASSWORD
-          #   value: admin
+          env:
+          - name: GEOSERVER_ADMIN_USER
+            value: "geobeyond"
+          - name: GEOSERVER_ADMIN_PASSWORD
+            value: "myawesomegeoserver"
           volumeMounts: # This section specifies where the volume should be mounted inside the container
             - name: volumepartage
               mountPath: /opt/geoserver/data_dir/bibi/ # Replace this with the actual moun #/opt/geoserver_data

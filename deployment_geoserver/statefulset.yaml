@@ -19,11 +19,11 @@ spec:
             claimName: espace-kindlytoad
       containers:
         - name: geoserver
-          image: kartoza/geoserver:2.19.0
+          image: kartoza/geoserver:2.21.0 # 2.19.0
           imagePullPolicy: Always
           volumeMounts: # This section specifies where the volume should be mounted inside the container
             - name: volumepartage
-              mountPath: /opt/geoserver/data_dir # Replace this with the actual moun #/opt/geoserver_data
+              mountPath: /opt/geoserver_data/ # Replace this with the actual moun #/opt/geoserver_data
 
       initContainers:
         - name: downloadimages
@@ -32,6 +32,11 @@ spec:
          
           command: ["mc"]
           args: ["cp","s3/cguillo/ilots_972.gpkg","dossierimage/ilots_972.gpkg"]
+          env:
+          - name: GEOSERVER_ADMIN_USER
+            value: kikou
+          - name: GEOSERVER_ADMIN_PASSWORD
+            value: kikou
           envFrom:
           - secretRef:
               name: env-secrets-kindlytoad

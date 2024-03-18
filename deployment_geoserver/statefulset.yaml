@@ -19,7 +19,8 @@ spec:
             claimName: espace-kindlytoad
       containers:
         - name: geoserver
-          image: kartoza/geoserver:2.23.1 # 2.19.0
+          image: kartoza/geoserver:2.22.4--v2023.10.21
+ # 2.19.0
           imagePullPolicy: Always
           env:
           - name: GEOSERVER_ADMIN_USER

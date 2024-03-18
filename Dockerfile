@@ -1,6 +1,9 @@
 FROM inseefrlab/onyxia-python-pytorch:py3.11.6
 
 ENV TIMEOUT=300
+
+ENV PROJ_LIB=/opt/mamba/share/proj
+
 # set api as the current work dir
 WORKDIR /api
 
@@ -8,8 +11,7 @@ WORKDIR /api
 COPY requirements.txt requirements.txt
 
 # install all the requirements
-RUN mamba install -c conda-forge gdal -y &&\
-    export PROJ_LIB=/opt/mamba/share/proj &&\
+RUN mamba install -c conda-forge gdal=3.8.4 -y &&\
     pip install --no-cache-dir --upgrade -r requirements.txt
 
 # copy the main code of fastapi

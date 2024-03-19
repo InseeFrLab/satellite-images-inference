@@ -16,11 +16,11 @@ geoserver:
     initContainers:
       - name: download-ilots-file
         image: minio/mc
-        command: ["mc"]
-        args: ["cp","s3/cguillo/ilots_972.gpkg","/dossierimage/data_dir/kikou/ilots_972.gpkg"]
+        command: ["/bin/sh", "-c"]
+        args: ["mc cp s3/projet-slums-detection/bibi.tif /dossierimage/data_dir/Marti_2022/bibi.tif && mc cp s3/projet-slums-detection/baba.tif /dossierimage/data_dir/Marti_2022/baba.tif"]
         envFrom:
         - secretRef:
-            name: env-secrets-kindlytoad
+            name: env-secrets-slums-detection
         volumeMounts:
         - name: geoserver-data-dir
           mountPath: /dossierimage

@@ -1,4 +1,5 @@
 #!/bin/bash
 
+export MC_HOST_s3=https://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY@$AWS_S3_ENDPOINT
 export MLFLOW_MODEL_NAME=test
 export MLFLOW_MODEL_VERSION="15"

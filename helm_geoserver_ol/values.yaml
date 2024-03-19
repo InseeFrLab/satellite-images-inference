@@ -1,0 +1,50 @@
+geoserver:
+  geoserverUser: "admin"
+
+  # For prefilled password
+  # It will be stored in secret later
+  geoserverPassword: "admin"
+
+  # Define this for extra GeoServer environment variables
+  extraPodEnv: |
+    - name: GEOSERVER_CSRF_DISABLED
+      value: "true"
+      
+
+  # This will be evaluated as pod spec
+  extraPodSpec: |
+    initContainers:
+      - name: download-ilots-file
+        image: minio/mc
+        command: ["mc"]
+        args: ["cp","s3/cguillo/ilots_972.gpkg","/dossierimage/data_dir/kikou/ilots_972.gpkg"]
+        envFrom:
+        - secretRef:
+            name: env-secrets-kindlytoad
+        volumeMounts:
+        - name: geoserver-data-dir
+          mountPath: /dossierimage
+
+
+  persistence:
+    geoserverDataDir:
+      enabled: true
+      existingClaim: false
+      mountPath: /opt/geoserver/data_dir
+      subPath: "data_dir"
+      size: 8Gi
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      annotations: {}
+    geowebcacheCacheDir:
+      enabled: false
+      existingClaim: false
+      mountPath: /opt/geoserver/data_dir/gwc
+      subPath: "gwc"
+      size: 8Gi
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      annotations: {}
+

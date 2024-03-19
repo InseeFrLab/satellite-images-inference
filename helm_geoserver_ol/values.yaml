@@ -1,0 +1,50 @@
+geoserver:
+  geoserverUser: "admin"
+
+  # For prefilled password
+  # It will be stored in secret later
+  geoserverPassword: "admin"
+
+  # Define this for extra GeoServer environment variables
+  extraPodEnv: |
+    - name: GEOSERVER_CSRF_DISABLED
+      value: "true"
+      
+
+  # This will be evaluated as pod spec
+  extraPodSpec: |
+    initContainers:
+      - name: download-ilots-file
+        image: minio/mc
+        command: ["/bin/sh", "-c"]
+        args: ["mc cp s3/projet-slums-detection/bibi.tif /dossierimage/data_dir/Marti_2022/bibi.tif && mc cp s3/projet-slums-detection/baba.tif /dossierimage/data_dir/Marti_2022/baba.tif"]
+        envFrom:
+        - secretRef:
+            name: env-secrets-slums-detection
+        volumeMounts:
+        - name: geoserver-data-dir
+          mountPath: /dossierimage
+
+
+  persistence:
+    geoserverDataDir:
+      enabled: true
+      existingClaim: false
+      mountPath: /opt/geoserver/data_dir
+      subPath: "data_dir"
+      size: 8Gi
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      annotations: {}
+    geowebcacheCacheDir:
+      enabled: false
+      existingClaim: false
+      mountPath: /opt/geoserver/data_dir/gwc
+      subPath: "gwc"
+      size: 8Gi
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      annotations: {}
+

@@ -19,8 +19,8 @@ geoserver:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          mc cp s3/projet-slums-detection/data-geoserver/MARTINIQUE/2022/ /dossierimage/data_dir/Martinique_2022 && \
-          mc cp s3/projet-slums-detection/data-geoserver/ilots/  /dossierimage/data_dir/ilots
+          mc cp --recursive s3/projet-slums-detection/data-geoserver/MARTINIQUE/2022/ /dossierimage/data_dir/Martinique_2022 && \
+          mc cp --recursive s3/projet-slums-detection/data-geoserver/ilots/  /dossierimage/data_dir/ilots
         envFrom:
         - secretRef:
             name: env-secrets-slums-detection

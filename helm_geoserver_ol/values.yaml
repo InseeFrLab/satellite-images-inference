@@ -35,7 +35,7 @@ geoserver:
       existingClaim: false
       mountPath: /opt/geoserver/data_dir
       subPath: "data_dir"
-      size: 8Gi
+      size: 30Gi
       storageClass: ""
       accessModes:
         - ReadWriteOnce

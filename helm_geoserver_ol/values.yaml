@@ -9,7 +9,7 @@ geoserver:
   extraPodEnv: |
     - name: GEOSERVER_CSRF_DISABLED
       value: "true"
-      
+
 
   # This will be evaluated as pod spec
   extraPodSpec: |
@@ -17,7 +17,10 @@ geoserver:
       - name: download-ilots-file
         image: minio/mc
         command: ["/bin/sh", "-c"]
-        args: ["mc cp s3/projet-slums-detection/bibi.tif /dossierimage/data_dir/Marti_2022/bibi.tif && mc cp s3/projet-slums-detection/baba.tif /dossierimage/data_dir/Marti_2022/baba.tif"]
+        args:
+        - |
+          mc cp s3/projet-slums-detection/data-geoserver/MARTINIQUE/2022/ /dossierimage/data_dir/Martinique_2022 && \
+          mc cp s3/projet-slums-detection/data-geoserver/ilots/  /dossierimage/data_dir/ilots
         envFrom:
         - secretRef:
             name: env-secrets-slums-detection
@@ -47,4 +50,3 @@ geoserver:
       accessModes:
         - ReadWriteOnce
       annotations: {}
-

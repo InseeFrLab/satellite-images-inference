@@ -4,5 +4,7 @@ ctrl + D pour quitter
 kubectl cp 
 
 mc cp --recursive s3/projet-slums-detection/data-geoserver/GUADELOUPE/2022 GUADELOUPE/2022
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/GUADELOUPE/2022
+
 kubectl cp /path/to/local/directory <namespace>/<pod-name>:/path/in/pod
-kubectl cp  GUADELOUPE/2022 projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir
+kubectl cp  GUADELOUPE/2022/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/GUADELOUPE/2022/

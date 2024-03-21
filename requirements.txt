@@ -1,5 +1,5 @@
 fastapi==0.110.0
-mlflow==2.11.1
+mlflow==2.11.3
 pydantic==2.6.3
 PyYAML==6.0.1
 Requests==2.31.0

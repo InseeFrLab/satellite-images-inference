@@ -4,8 +4,10 @@ Main file for the API.
 
 import os
 import mlflow
-import numpy as np
 import torch
+from astrovision.data import SegmentationLabeledSatelliteImage
+from astrovision.plot import make_mosaic
+from osgeo import gdal
 
 from contextlib import asynccontextmanager
 from typing import Dict
@@ -17,7 +19,6 @@ from app.utils import (
     preprocess_image,
     produce_mask,
 )
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
         normalization_mean, \
         normalization_std
 
+    gdal.UseExceptions()
     model_name: str = os.getenv("MLFLOW_MODEL_NAME")
     model_version: str = os.getenv("MLFLOW_MODEL_VERSION")
     # Load the ML model
@@ -114,7 +116,7 @@ async def predict(
             )
         else:
             si_splitted = si.split(tiles_size)
-            masks = []
+            lsi_splitted = []
             for s_si in si_splitted:
                 # Preprocess the image
                 normalized_si = preprocess_image(
@@ -123,19 +125,15 @@ async def predict(
                     tiles_size=tiles_size,
                     augment_size=augment_size,
                     n_bands=n_bands,
+                    normalization_mean=normalization_mean,
+                    normalization_std=normalization_std,
                 )
 
                 # Make prediction using the model
                 prediction = torch.tensor(model.predict(normalized_si.numpy()))
-
-                # Produce mask from prediction
-                masks.append(produce_mask(prediction, model, module_name, s_si.array.shape[-2:]))
-
-            quotient = si.array.shape[1] / tiles_size
-            grid = np.array(masks).reshape(quotient, quotient, tiles_size, tiles_size)
-
-            # Stack the small arrays to create the large array
-            mask = np.block([[grid[i, j] for j in range(quotient)] for i in range(quotient)])
+                mask = produce_mask(prediction, model, module_name, s_si.array.shape[-2:])
+                lsi_splitted.append(SegmentationLabeledSatelliteImage(s_si, mask))
+            mask = make_mosaic(lsi_splitted, [i for i in range(n_bands)]).label
     else:
         raise ValueError(
             "The dimension of the image should be equal to or greater than the tile size used during training."
@@ -143,4 +141,3 @@ async def predict(
 
     # Convert mask to list and return as a dictionnary
     return {"mask": mask.tolist()}
-    # arr = np.asarray(json.loads(resp.json()))  # resp.json() if using Python requests

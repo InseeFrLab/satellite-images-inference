@@ -18,7 +18,9 @@ from app.utils import (
     get_satellite_image,
     preprocess_image,
     produce_mask,
+    create_geojson_from_mask,
 )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -76,18 +78,17 @@ def show_welcome_page():
 
 
 @app.get("/predict", tags=["Predict"])
-async def predict(
-    image: str,
-) -> Dict:
+async def predict(image: str, polygons: bool = False) -> Dict:
     """
     Predicts mask for a given satellite image.
 
     Args:
-        image (str): S3 path of the satellite image.
+        request (PredictionRequest): Request containing image path and polygons flag.
 
     Returns:
         Dict: Response containing mask of prediction.
     """
+
     # Retrieve satellite image
     si = get_satellite_image(image, n_bands)
 
@@ -139,5 +140,7 @@ async def predict(
             "The dimension of the image should be equal to or greater than the tile size used during training."
         )
 
-    # Convert mask to list and return as a dictionnary
-    return {"mask": mask.tolist()}
+    if polygons:
+        return create_geojson_from_mask(mask.astype("uint8"), si)
+    else:
+        return {"mask": mask.tolist()}

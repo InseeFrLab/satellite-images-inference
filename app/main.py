@@ -4,10 +4,9 @@ Main file for the API.
 
 import os
 import mlflow
-import torch
-from astrovision.data import SegmentationLabeledSatelliteImage
 from astrovision.plot import make_mosaic
 from osgeo import gdal
+from joblib import Parallel, delayed
 
 from contextlib import asynccontextmanager
 from typing import Dict
@@ -16,9 +15,8 @@ from app.utils import (
     get_model,
     get_normalization_metrics,
     get_satellite_image,
-    preprocess_image,
-    produce_mask,
     create_geojson_from_mask,
+    make_prediction,
 )
 
 
@@ -93,8 +91,7 @@ async def predict(image: str, polygons: bool = False) -> Dict:
     si = get_satellite_image(image, n_bands)
 
     if si.array.shape[1] == tiles_size:
-        # Preprocess the image
-        normalized_si = preprocess_image(
+        lsi = make_prediction(
             model=model,
             image=si,
             tiles_size=tiles_size,
@@ -102,13 +99,8 @@ async def predict(image: str, polygons: bool = False) -> Dict:
             n_bands=n_bands,
             normalization_mean=normalization_mean,
             normalization_std=normalization_std,
+            module_name=module_name,
         )
-
-        # Make prediction using the model
-        prediction = torch.tensor(model.predict(normalized_si.numpy()))
-
-        # Produce mask from prediction
-        mask = produce_mask(prediction, model, module_name, si.array.shape[-2:])
 
     elif si.array.shape[1] > tiles_size:
         if si.array.shape[1] % tiles_size != 0:
@@ -117,30 +109,28 @@ async def predict(image: str, polygons: bool = False) -> Dict:
             )
         else:
             si_splitted = si.split(tiles_size)
-            lsi_splitted = []
-            for s_si in si_splitted:
-                # Preprocess the image
-                normalized_si = preprocess_image(
-                    model=model,
-                    image=s_si,
-                    tiles_size=tiles_size,
-                    augment_size=augment_size,
-                    n_bands=n_bands,
-                    normalization_mean=normalization_mean,
-                    normalization_std=normalization_std,
-                )
 
-                # Make prediction using the model
-                prediction = torch.tensor(model.predict(normalized_si.numpy()))
-                mask = produce_mask(prediction, model, module_name, s_si.array.shape[-2:])
-                lsi_splitted.append(SegmentationLabeledSatelliteImage(s_si, mask))
-            mask = make_mosaic(lsi_splitted, [i for i in range(n_bands)]).label
+            lsi_splitted = Parallel(n_jobs=16)(
+                delayed(make_prediction)(
+                    s_si,
+                    model,
+                    tiles_size,
+                    augment_size,
+                    n_bands,
+                    normalization_mean,
+                    normalization_std,
+                    module_name,
+                )
+                for s_si in si_splitted
+            )
+
+            lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
     else:
         raise ValueError(
             "The dimension of the image should be equal to or greater than the tile size used during training."
         )
 
     if polygons:
-        return create_geojson_from_mask(mask.astype("uint8"), si)
+        return create_geojson_from_mask(lsi.label.astype("uint8"), si)
     else:
-        return {"mask": mask.tolist()}
+        return {"mask": lsi.label.tolist()}

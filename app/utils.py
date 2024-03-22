@@ -9,7 +9,8 @@ import torch
 import json
 
 from albumentations.pytorch.transforms import ToTensorV2
-from astrovision.data import SatelliteImage
+from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
+
 from typing import List
 import rasterio
 from rasterio.features import shapes
@@ -239,3 +240,47 @@ def create_geojson_from_mask(mask: np.array, si: SatelliteImage) -> str:
         gdf = gpd.GeoDataFrame.from_features(list(results))
 
     return gdf.loc[:, "geometry"].to_json()
+
+
+def make_prediction(
+    image: SatelliteImage,
+    model: mlflow.pyfunc.PyFuncModel,
+    tiles_size: int,
+    augment_size: int,
+    n_bands: int,
+    normalization_mean: List[float],
+    normalization_std: List[float],
+    module_name: str,
+):
+    """
+    Makes a prediction on a satellite image.
+
+    Args:
+        image (SatelliteImage): The input satellite image.
+        model: The ML model.
+        tiles_size: The size of the tiles used during training.
+        augment_size: The size of the augmentation used during training.
+        n_bands: The number of bands in the satellite image.
+        normalization_mean: The mean value used for normalization.
+        normalization_std: The standard deviation used for normalization.
+
+    Returns:
+        SegmentationLabeledSatelliteImage: The labeled satellite image with the predicted mask.
+    """
+    # Preprocess the image
+    normalized_si = preprocess_image(
+        model=model,
+        image=image,
+        tiles_size=tiles_size,
+        augment_size=augment_size,
+        n_bands=n_bands,
+        normalization_mean=normalization_mean,
+        normalization_std=normalization_std,
+    )
+
+    # Make prediction using the model
+    prediction = torch.tensor(model.predict(normalized_si.numpy()))
+
+    # Produce mask from prediction
+    mask = produce_mask(prediction, model, module_name, image.array.shape[-2:])
+    return SegmentationLabeledSatelliteImage(image, mask)

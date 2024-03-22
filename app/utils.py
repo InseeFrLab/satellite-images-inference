@@ -11,6 +11,9 @@ import json
 from albumentations.pytorch.transforms import ToTensorV2
 from astrovision.data import SatelliteImage
 from typing import List
+import rasterio
+from rasterio.features import shapes
+import geopandas as gpd
 
 
 def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
@@ -197,3 +200,42 @@ def produce_mask(
             raise ValueError("Invalid module name specified.")
 
     return mask.numpy()
+
+
+def create_geojson_from_mask(mask: np.array, si: SatelliteImage) -> str:
+    """
+    Create a GeoJSON file from a binary mask.
+
+    Args:
+        mask (ndarray): Binary mask array.
+        si (SatelliteImage): Satellite image object.
+
+    Returns:
+        GeoDataFrame: GeoDataFrame containing the mask polygons.
+    """
+
+    # Define the metadata for the raster image
+    metadata = {
+        "driver": "GTiff",
+        "dtype": "uint8",
+        "count": 1,
+        "width": mask.shape[1],
+        "height": mask.shape[0],
+        "crs": si.crs,
+        "transform": rasterio.transform.from_origin(
+            si.bounds[0], si.bounds[3], 0.5, 0.5
+        ),  # pixel size is 0.5m
+    }
+
+    # Write the binary array as a raster image
+    with rasterio.open("temp.tif", "w+", **metadata) as dst:
+        dst.write(mask, 1)
+        results = (
+            {"properties": {"raster_val": v}, "geometry": s}
+            for i, (s, v) in enumerate(shapes(mask, mask=None, transform=dst.transform))
+            if v == 1  # Keep only the clusters with value 1
+        )
+
+        gdf = gpd.GeoDataFrame.from_features(list(results))
+
+    return gdf.loc[:, "geometry"].to_json()

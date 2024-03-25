@@ -12,7 +12,7 @@ from joblib import Parallel, delayed
 
 from contextlib import asynccontextmanager
 from typing import Dict
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Response
 from app.utils import (
     get_file_system,
     get_model,
@@ -106,7 +106,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
         module_name=module_name,
     )
     if polygons:
-        return create_geojson_from_mask(lsi).to_json()
+        return Response(content=create_geojson_from_mask(lsi).to_json(), media_type="text/plain")
     else:
         return {"mask": lsi.label.tolist()}
 
@@ -179,4 +179,4 @@ def predict_cluster(
         crs=selected_cluster.crs,
     )
 
-    return preds_ilot.loc[:, "geometry"].to_json()
+    return Response(content=preds_ilot.loc[:, "geometry"].to_json(), media_type="text/plain")

@@ -4,25 +4,22 @@ Main file for the API.
 
 import os
 import mlflow
-from astrovision.plot import make_mosaic
 from osgeo import gdal
-from joblib import Parallel, delayed
 import geopandas as gpd
 from shapely.ops import unary_union
 import pandas as pd
-import json
+from joblib import Parallel, delayed
 
 from contextlib import asynccontextmanager
 from typing import Dict
-from fastapi import FastAPI
-from fastapi import Query
+from fastapi import FastAPI, Query
 from app.utils import (
     get_file_system,
     get_model,
     get_normalization_metrics,
     get_satellite_image,
     create_geojson_from_mask,
-    make_prediction,
+    predict,
 )
 
 
@@ -87,57 +84,29 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
     Predicts mask for a given satellite image.
 
     Args:
-        request (PredictionRequest): Request containing image path and polygons flag.
+        image (str): Path to the satellite image.
+        polygons (bool, optional): Flag indicating whether to include polygons in the response. Defaults to False.
 
     Returns:
-        Dict: Response containing mask of prediction.
+        Dict: Response containing the mask of the prediction.
+
+    Raises:
+        ValueError: If the dimension of the image is not divisible by the tile size used during training or if the dimension is smaller than the tile size.
+
     """
 
-    # Retrieve satellite image
-    si = get_satellite_image(image, n_bands)
-
-    if si.array.shape[1] == tiles_size:
-        lsi = make_prediction(
-            model=model,
-            image=si,
-            tiles_size=tiles_size,
-            augment_size=augment_size,
-            n_bands=n_bands,
-            normalization_mean=normalization_mean,
-            normalization_std=normalization_std,
-            module_name=module_name,
-        )
-
-    elif si.array.shape[1] > tiles_size:
-        if si.array.shape[1] % tiles_size != 0:
-            raise ValueError(
-                "The dimension of the image must be divisible by the tiles size used during training."
-            )
-        else:
-            si_splitted = si.split(tiles_size)
-
-            lsi_splitted = Parallel(n_jobs=16)(
-                delayed(make_prediction)(
-                    s_si,
-                    model,
-                    tiles_size,
-                    augment_size,
-                    n_bands,
-                    normalization_mean,
-                    normalization_std,
-                    module_name,
-                )
-                for s_si in si_splitted
-            )
-
-            lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
-    else:
-        raise ValueError(
-            "The dimension of the image should be equal to or greater than the tile size used during training."
-        )
-
+    lsi = predict(
+        image=image,
+        model=model,
+        tiles_size=tiles_size,
+        augment_size=augment_size,
+        n_bands=n_bands,
+        normalization_mean=normalization_mean,
+        normalization_std=normalization_std,
+        module_name=module_name,
+    )
     if polygons:
-        return create_geojson_from_mask(lsi.label.astype("uint8"), si)
+        return create_geojson_from_mask(lsi).to_json()
     else:
         return {"mask": lsi.label.tolist()}
 
@@ -182,9 +151,15 @@ def predict_cluster(
     # Predict the images
     n_jobs = min(len(images), 10)
     predictions = Parallel(n_jobs=n_jobs)(
-        delayed(predict_image)(
+        delayed(predict)(
             image,
-            True,
+            model,
+            tiles_size,
+            augment_size,
+            n_bands,
+            normalization_mean,
+            normalization_std,
+            module_name,
         )
         for image in images
     )
@@ -193,7 +168,7 @@ def predict_cluster(
     crs = get_satellite_image(images[0], n_bands).crs
 
     # Get the predictions for all the images
-    all_preds = pd.concat([gpd.GeoDataFrame.from_features(json.loads(x)) for x in predictions])
+    all_preds = pd.concat([create_geojson_from_mask(x) for x in predictions])
     all_preds.crs = crs
 
     # Restrict the predictions to the cluster

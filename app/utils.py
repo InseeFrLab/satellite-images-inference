@@ -2,21 +2,23 @@
 Utils.
 """
 
-import albumentations as A
-import mlflow
-import numpy as np
-import torch
 import json
 import os
-from s3fs import S3FileSystem
+from typing import Dict, List
 
+import albumentations as A
+import geopandas as gpd
+import mlflow
+import numpy as np
+import rasterio
+import torch
 from albumentations.pytorch.transforms import ToTensorV2
 from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
-
-from typing import List
-import rasterio
+from joblib import Parallel, delayed
 from rasterio.features import shapes
-import geopandas as gpd
+from s3fs import S3FileSystem
+
+from astrovision.plot import make_mosaic
 
 
 def get_file_system() -> S3FileSystem:
@@ -216,43 +218,46 @@ def produce_mask(
     return mask.numpy()
 
 
-def create_geojson_from_mask(mask: np.array, si: SatelliteImage) -> str:
+def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
     """
-    Create a GeoJSON file from a binary mask.
+    Creates a GeoJSON string from a binary mask.
 
     Args:
-        mask (ndarray): Binary mask array.
-        si (SatelliteImage): Satellite image object.
+        lsi: A SegmentationLabeledSatelliteImage.
 
     Returns:
-        GeoDataFrame: GeoDataFrame containing the mask polygons.
+        A GeoJSON string representing the clusters with value 1 in the binary mask.
+
+    Raises:
+        None.
     """
+    lsi.label = lsi.label.astype("uint8")
 
     # Define the metadata for the raster image
     metadata = {
         "driver": "GTiff",
         "dtype": "uint8",
         "count": 1,
-        "width": mask.shape[1],
-        "height": mask.shape[0],
-        "crs": si.crs,
+        "width": lsi.label.shape[1],
+        "height": lsi.label.shape[0],
+        "crs": lsi.satellite_image.crs,
         "transform": rasterio.transform.from_origin(
-            si.bounds[0], si.bounds[3], 0.5, 0.5
+            lsi.satellite_image.bounds[0], lsi.satellite_image.bounds[3], 0.5, 0.5
         ),  # pixel size is 0.5m
     }
 
     # Write the binary array as a raster image
     with rasterio.open("temp.tif", "w+", **metadata) as dst:
-        dst.write(mask, 1)
+        dst.write(lsi.label, 1)
         results = (
             {"properties": {"raster_val": v}, "geometry": s}
-            for i, (s, v) in enumerate(shapes(mask, mask=None, transform=dst.transform))
+            for i, (s, v) in enumerate(shapes(lsi.label, mask=None, transform=dst.transform))
             if v == 1  # Keep only the clusters with value 1
         )
 
         gdf = gpd.GeoDataFrame.from_features(list(results))
 
-    return gdf.loc[:, "geometry"].to_json()
+    return gdf.loc[:, "geometry"]
 
 
 def make_prediction(
@@ -297,3 +302,78 @@ def make_prediction(
     # Produce mask from prediction
     mask = produce_mask(prediction, model, module_name, image.array.shape[-2:])
     return SegmentationLabeledSatelliteImage(image, mask)
+
+
+def predict(
+    image: str,
+    model: mlflow.pyfunc.PyFuncModel,
+    tiles_size: int,
+    augment_size: int,
+    n_bands: int,
+    normalization_mean: List[float],
+    normalization_std: List[float],
+    module_name: str,
+) -> Dict:
+    """
+    Predicts mask for a given satellite image.
+
+    Args:
+        image (str): Path to the satellite image.
+        model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
+        tiles_size (int): Size of the satellite image.
+        augment_size (int): Size of the augmentation.
+        n_bands (int): Number of bands in the satellite image.
+        normalization_mean (List[float]): List of mean values for normalization.
+        normalization_std (List[float]): List of standard deviation values for normalization.
+        module_name (str): Name of the module used for training.
+
+    Returns:
+        SegmentationLabeledSatelliteImage: The labeled satellite image with the predicted mask.
+
+    Raises:
+        ValueError: If the dimension of the image is not divisible by the tile size used during training or if the dimension is smaller than the tile size.
+
+    """
+    # Retrieve satellite image
+    si = get_satellite_image(image, n_bands)
+
+    if si.array.shape[1] == tiles_size:
+        lsi = make_prediction(
+            model=model,
+            image=si,
+            tiles_size=tiles_size,
+            augment_size=augment_size,
+            n_bands=n_bands,
+            normalization_mean=normalization_mean,
+            normalization_std=normalization_std,
+            module_name=module_name,
+        )
+
+    elif si.array.shape[1] > tiles_size:
+        if si.array.shape[1] % tiles_size != 0:
+            raise ValueError(
+                "The dimension of the image must be divisible by the tiles size used during training."
+            )
+        else:
+            si_splitted = si.split(tiles_size)
+
+            lsi_splitted = Parallel(n_jobs=16)(
+                delayed(make_prediction)(
+                    s_si,
+                    model,
+                    tiles_size,
+                    augment_size,
+                    n_bands,
+                    normalization_mean,
+                    normalization_std,
+                    module_name,
+                )
+                for s_si in si_splitted
+            )
+
+            lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
+    else:
+        raise ValueError(
+            "The dimension of the image should be equal to or greater than the tile size used during training."
+        )
+    return lsi

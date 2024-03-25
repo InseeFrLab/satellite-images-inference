@@ -19,6 +19,9 @@ from rasterio.features import shapes
 from s3fs import S3FileSystem
 
 from astrovision.plot import make_mosaic
+from shapely.ops import unary_union
+import pandas as pd
+import pyproj
 
 
 def get_file_system() -> S3FileSystem:
@@ -377,3 +380,63 @@ def predict(
             "The dimension of the image should be equal to or greater than the tile size used during training."
         )
     return lsi
+
+
+def predict_parallel(
+    images: List[str],
+    roi: gpd.GeoDataFrame,
+    model,
+    tiles_size,
+    augment_size,
+    n_bands,
+    normalization_mean,
+    normalization_std,
+    module_name,
+):
+    # Predict the images in parallel
+    n_jobs = min(len(images), 10)
+    predictions = Parallel(n_jobs=n_jobs)(
+        delayed(predict)(
+            image,
+            model,
+            tiles_size,
+            augment_size,
+            n_bands,
+            normalization_mean,
+            normalization_std,
+            module_name,
+        )
+        for image in images
+    )
+
+    # Get the crs from the first image
+    crs = get_satellite_image(images[0], n_bands).crs
+
+    # Get the predictions for all the images
+    all_preds = pd.concat([create_geojson_from_mask(x) for x in predictions])
+    all_preds.crs = crs
+
+    # Restrict the predictions to the cluster
+    preds_roi = gpd.GeoDataFrame(
+        geometry=[unary_union(roi.geometry).intersection(unary_union(all_preds.geometry))],
+        crs=roi.crs,
+    )
+    return preds_roi
+
+
+def transform_bbox(bbox: List[float], source_epsg: int, target_epsg: int) -> List[float]:
+    """
+    Transform a bounding box from a source EPSG to a target EPSG.
+
+    Args:
+        bbox (List[float]): The bounding box coordinates [xmin, ymin, xmax, ymax].
+        source_epsg (int): The EPSG code of the source coordinate system.
+        target_epsg (int): The EPSG code of the target coordinate system.
+
+    Returns:
+        List[float]: The transformed bounding box coordinates [xmin, ymin, xmax, ymax].
+    """
+    transformer = pyproj.Transformer.from_crs(source_epsg, target_epsg, always_xy=True)
+    xmin, ymin = transformer.transform(bbox[0], bbox[1])
+    xmax, ymax = transformer.transform(bbox[2], bbox[3])
+    return [xmin, ymin, xmax, ymax]

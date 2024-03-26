@@ -21,7 +21,7 @@ from s3fs import S3FileSystem
 from astrovision.plot import make_mosaic
 from shapely.ops import unary_union
 import pandas as pd
-import pyproj
+import pyarrow.dataset as ds
 
 
 def get_file_system() -> S3FileSystem:
@@ -424,19 +424,32 @@ def predict_parallel(
     return preds_roi
 
 
-def transform_bbox(bbox: List[float], source_epsg: int, target_epsg: int) -> List[float]:
+def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:
     """
-    Transform a bounding box from a source EPSG to a target EPSG.
+    Retrieves the filename to polygons mapping for a given department and year.
 
     Args:
-        bbox (List[float]): The bounding box coordinates [xmin, ymin, xmax, ymax].
-        source_epsg (int): The EPSG code of the source coordinate system.
-        target_epsg (int): The EPSG code of the target coordinate system.
+        dep (str): The department code.
+        year (int): The year.
+        fs (S3FileSystem): The S3FileSystem object for accessing the data.
 
     Returns:
-        List[float]: The transformed bounding box coordinates [xmin, ymin, xmax, ymax].
+        gpd.GeoDataFrame: A GeoDataFrame containing the filename to polygons mapping.
+
     """
-    transformer = pyproj.Transformer.from_crs(source_epsg, target_epsg, always_xy=True)
-    xmin, ymin = transformer.transform(bbox[0], bbox[1])
-    xmax, ymax = transformer.transform(bbox[2], bbox[3])
-    return [xmin, ymin, xmax, ymax]
+    # Load the filename to polygons mapping
+    data = (
+        ds.dataset(
+            "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
+            partitioning=["dep", "year"],
+            format="parquet",
+            filesystem=fs,
+        )
+        .to_table()
+        .filter((ds.field("dep") == f"dep={dep}") & (ds.field("year") == f"year={year}"))
+        .to_pandas()
+    )
+
+    # Convert the geometry column to a GeoSeries
+    data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])
+    return gpd.GeoDataFrame(data, geometry="geometry", crs=data.loc[0, "CRS"])

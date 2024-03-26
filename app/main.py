@@ -18,8 +18,8 @@ from app.utils import (
     get_normalization_metrics,
     create_geojson_from_mask,
     predict,
-    transform_bbox,
     predict_parallel,
+    get_filename_to_polygons,
 )
 
 
@@ -133,11 +133,8 @@ def predict_cluster(
     with fs.open("projet-slums-detection/ilots/ilots.gpkg", "rb") as f:
         clusters = gpd.read_file(f)
 
-    with fs.open(
-        f"projet-slums-detection/data-raw/PLEIADES/{dep}/{year}/filename_to_polygon.parquet",
-        "rb",
-    ) as f:
-        filename_table = gpd.read_parquet(f)
+    # Get the filename to polygons mapping
+    filename_table = get_filename_to_polygons(dep, year, fs)
 
     # Get the selected cluster
     selected_cluster = clusters.loc[clusters["ident_ilot"] == cluster_id].to_crs(filename_table.crs)
@@ -172,32 +169,29 @@ def predict_bbox(
     ymax: float,
     epsg: int = Query(4326, ge=0),
     year: int = Query(2022, ge=2017, le=2023),
+    dep: str = Query("MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION)$"),
 ) -> Dict:
     """
-    Predicts cluster for a given cluster ID, year, and department.
+    Predicts the bounding box for satellite images based on the given coordinates.
 
     Args:
-        cluster_id (str): The ID of the cluster.
-        year (int): The year of the satellite images.
-        dep (str): The department of the satellite images.
+        xmin (float): The minimum x-coordinate of the bounding box.
+        xmax (float): The maximum x-coordinate of the bounding box.
+        ymin (float): The minimum y-coordinate of the bounding box.
+        ymax (float): The maximum y-coordinate of the bounding box.
+        epsg (int, optional): The EPSG code of the coordinate reference system (CRS) for the bounding box. Defaults to 4326.
+        year (int, optional): The year of the satellite images to use for prediction. Defaults to 2022.
 
     Returns:
-        Dict: Response containing the predicted cluster.
+        Dict: A dictionary containing the predicted bounding box coordinates.
     """
     fs = get_file_system()
 
-    with fs.open(
-        f"projet-slums-detection/data-raw/PLEIADES/MAYOTTE/{year}/filename_to_polygon.parquet",
-        "rb",
-    ) as f:
-        filename_table = gpd.read_parquet(f)
-
-    target_epsg = 4471
-    # Transform the bounding box to the correct EPSG
-    bbox_transformed = transform_bbox([xmin, ymin, xmax, ymax], epsg, target_epsg)
+    # Get the filename to polygons mapping
+    filename_table = get_filename_to_polygons(dep, year, fs)
 
     # Create a GeoSeries with the bounding box
-    bbox_geo = gpd.GeoSeries(box(*bbox_transformed)).to_crs(target_epsg)
+    bbox_geo = gpd.GeoSeries(box(*[xmin, ymin, xmax, ymax]), crs=epsg).to_crs(filename_table.crs)
 
     # Get the filenames of the images that intersect with the bbox
     images = filename_table.loc[

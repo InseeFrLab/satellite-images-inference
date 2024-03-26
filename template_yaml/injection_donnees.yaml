@@ -1,10 +1,14 @@
 mc cp
-kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  
-ctrl + D pour quitter
+kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter
+chmod -R a+rw /opt/geoserver/data_dir   # Donne tous les droite pour écrire !! car il y a un blocage après injection a posteriori
+
 kubectl cp 
 
+mc cp --recursive s3/projet-slums-detection/data-raw/SENTINEL2/GUADELOUPE/2022/ GUADELOUPE
+mc cp --recursive s3/projet-slums-detection/data-raw/SENTINEL2/MARTINIQUE/2022/ MARTINIQUE
 mc cp --recursive s3/projet-slums-detection/data-geoserver/GUADELOUPE/2022 GUADELOUPE/2022
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/GUADELOUPE/2022
 
 kubectl cp /path/to/local/directory <namespace>/<pod-name>:/path/in/pod
-kubectl cp  GUADELOUPE/2022/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/GUADELOUPE/2022/
+kubectl cp  MARTINIQUE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/SENTINEL2/MARTINIQUE
+kubectl cp  GUADELOUPE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/SENTINEL2/GUADELOUPE

@@ -48,9 +48,9 @@ spec:
           resources:
             limits:
               memory: "50Gi"
-              cpu: "50000m"
+              cpu: "90000m"
             requests:
               memory: "20Gi"
-              cpu: "100m"
-          workers: 10
+              cpu: "1000m"
+          workers: 12
           workerTimeout: 600

@@ -1,0 +1,60 @@
+geoserver:
+  geoserverUser: "admin"
+
+  # For prefilled password
+  # It will be stored in secret later
+  geoserverPassword: "admin"
+
+  # Define this for extra GeoServer environment variables
+  extraPodEnv: |
+    - name: GEOSERVER_CSRF_DISABLED
+      value: "true"
+
+
+  # This will be evaluated as pod spec
+  extraPodSpec: |
+    initContainers:
+      - name: download
+        image: minio/mc
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mc cp --recursive s3/projet-slums-detection/data-geoserver/MARTINIQUE/2022/ /dossierimage/data_dir/MARTINIQUE/2022 && \
+          mc cp --recursive s3/projet-slums-detection/data-geoserver/GUADELOUPE/2022/ /dossierimage/data_dir/GUADELOUPE/2022 && \
+          mc cp --recursive s3/projet-slums-detection/data-geoserver/ilots/  /dossierimage/data_dir/ilots
+        envFrom:
+        - secretRef:
+            name: env-secrets-slums-detection
+        volumeMounts:
+        - name: geoserver-data-dir
+          mountPath: /dossierimage
+
+
+  persistence:
+    geoserverDataDir:
+      enabled: true
+      existingClaim: false
+      mountPath: /opt/geoserver/data_dir
+      subPath: "data_dir"
+      size: 40Gi
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      annotations: {}
+    geowebcacheCacheDir:
+      enabled: false
+      existingClaim: false
+      mountPath: /opt/geoserver/data_dir/gwc
+      subPath: "gwc"
+      size: 8Gi
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      annotations: {}
+  resources:
+    requests:
+      memory: "16Gi"  # Request at least 2GB of RAM.
+      cpu: "3000m"   # Request at least 1000 millicores, equivalent to 1 CPU core.
+    limits:
+      memory: "100Gi"  # Limit to a maximum of 4GB of RAM.
+      cpu: "30000m"   

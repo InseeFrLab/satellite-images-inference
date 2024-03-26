@@ -258,9 +258,10 @@ def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
             if v == 1  # Keep only the clusters with value 1
         )
 
-        gdf = gpd.GeoDataFrame.from_features(list(results))
-
-    return gdf.loc[:, "geometry"]
+    if list(results):
+        return gpd.GeoDataFrame.from_features(list(results)).loc[:, "geometry"]
+    else:
+        return gpd.GeoDataFrame(columns=["geometry"])
 
 
 def make_prediction(
@@ -415,7 +416,7 @@ def predict_roi(
     all_preds = pd.concat([create_geojson_from_mask(x) for x in predictions])
     all_preds.crs = crs
 
-    # Restrict the predictions to the cluster
+    # Restrict the predictions to the region of interest
     preds_roi = gpd.GeoDataFrame(
         geometry=[unary_union(roi.geometry).intersection(unary_union(all_preds.geometry))],
         crs=roi.crs,

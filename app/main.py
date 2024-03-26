@@ -18,7 +18,7 @@ from app.utils import (
     get_normalization_metrics,
     create_geojson_from_mask,
     predict,
-    predict_parallel,
+    predict_roi,
     get_filename_to_polygons,
 )
 
@@ -146,7 +146,7 @@ def predict_cluster(
     ].tolist()
 
     # Predict the cluster
-    preds_cluster = predict_parallel(
+    preds_cluster = predict_roi(
         images,
         selected_cluster,
         model,
@@ -200,7 +200,7 @@ def predict_bbox(
     ].tolist()
 
     # Predict the bbox
-    preds_bbox = predict_parallel(
+    preds_bbox = predict_roi(
         images,
         bbox_geo,
         model,

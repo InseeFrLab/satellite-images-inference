@@ -14,7 +14,6 @@ import rasterio
 import torch
 from albumentations.pytorch.transforms import ToTensorV2
 from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
-from joblib import Parallel, delayed
 from rasterio.features import shapes
 from s3fs import S3FileSystem
 
@@ -22,6 +21,7 @@ from astrovision.plot import make_mosaic
 from shapely.ops import unary_union
 import pandas as pd
 import pyarrow.dataset as ds
+from tqdm import tqdm
 
 
 def get_file_system() -> S3FileSystem:
@@ -360,8 +360,8 @@ def predict(
         else:
             si_splitted = si.split(tiles_size)
 
-            lsi_splitted = Parallel(n_jobs=16)(
-                delayed(make_prediction)(
+            lsi_splitted = [
+                make_prediction(
                     s_si,
                     model,
                     tiles_size,
@@ -371,8 +371,8 @@ def predict(
                     normalization_std,
                     module_name,
                 )
-                for s_si in si_splitted
-            )
+                for s_si in tqdm(si_splitted)
+            ]
 
             lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
     else:
@@ -382,7 +382,7 @@ def predict(
     return lsi
 
 
-def predict_parallel(
+def predict_roi(
     images: List[str],
     roi: gpd.GeoDataFrame,
     model,
@@ -393,10 +393,9 @@ def predict_parallel(
     normalization_std,
     module_name,
 ):
-    # Predict the images in parallel
-    n_jobs = min(len(images), 10)
-    predictions = Parallel(n_jobs=n_jobs)(
-        delayed(predict)(
+    # Predict the images
+    predictions = [
+        predict(
             image,
             model,
             tiles_size,
@@ -406,8 +405,8 @@ def predict_parallel(
             normalization_std,
             module_name,
         )
-        for image in images
-    )
+        for image in tqdm(images)
+    ]
 
     # Get the crs from the first image
     crs = get_satellite_image(images[0], n_bands).crs

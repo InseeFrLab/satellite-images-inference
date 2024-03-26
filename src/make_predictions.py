@@ -108,12 +108,19 @@ def main(dep: str, year: int):
                 "polygons": True,
             },
         )
-        for image in tqdm(images[3:5])
+        for image in tqdm(images)
     ]
 
-    predictions = pd.concat(
-        [gpd.GeoDataFrame.from_features(r.json()["features"]) for r in response]
-    )
+    preds = []
+    for i in range(len(response)):
+        if response[i].status_code != 200:
+            print(f"Error with image {images[i]}")
+        else:
+            gdf = gpd.GeoDataFrame.from_features(response[i].json()["features"])
+            gdf["filename"] = images[i]
+            preds.append(gdf)
+
+    predictions = pd.concat(preds)
     predictions.crs = roi.crs
 
     predictions_path = (

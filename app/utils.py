@@ -252,14 +252,14 @@ def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
     # Write the binary array as a raster image
     with rasterio.open("temp.tif", "w+", **metadata) as dst:
         dst.write(lsi.label, 1)
-        results = (
+        results = [
             {"properties": {"raster_val": v}, "geometry": s}
             for i, (s, v) in enumerate(shapes(lsi.label, mask=None, transform=dst.transform))
             if v == 1  # Keep only the clusters with value 1
-        )
+        ]
 
-    if list(results):
-        return gpd.GeoDataFrame.from_features(list(results)).loc[:, "geometry"]
+    if results:
+        return gpd.GeoDataFrame.from_features(results).loc[:, "geometry"]
     else:
         return gpd.GeoDataFrame(columns=["geometry"])
 

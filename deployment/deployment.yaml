@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: satellite-images-model-deployment
 spec:
-  replicas: 24
+  replicas: 5
   selector:
     matchLabels:
       app: satellite-images-model-deployment

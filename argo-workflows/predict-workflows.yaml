@@ -1,0 +1,97 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: parallel-predict-
+spec:
+  volumes:
+    - name: dshm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 64Gi
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: predict-conf-list
+        value: '[
+            {"DEP": "MAYOTTE", "YEAR": "2022"},
+            {"DEP": "MAYOTTE", "YEAR": "2020"},
+            {"DEP": "MAYOTTE", "YEAR": "2019"},
+            {"DEP": "MAYOTTE", "YEAR": "2017"},
+
+            {"DEP": "GUADELOUPE", "YEAR": "2022"},
+            {"DEP": "GUADELOUPE", "YEAR": "2020"},
+            {"DEP": "GUADELOUPE", "YEAR": "2019"},
+            {"DEP": "GUADELOUPE", "YEAR": "2018"},
+
+            {"DEP": "MARTINIQUE", "YEAR": "2022"},
+            {"DEP": "MARTINIQUE", "YEAR": "2018"},
+
+            {"DEP": "REUNION", "YEAR": "2022"}
+            ]'
+
+  templates:
+    # Entrypoint DAG template
+    - name: main
+      dag:
+        tasks:
+          # Task 0: Start pipeline
+          - name: start-pipeline
+            template: start-pipeline-wt
+          # Task 1: Preprocess images
+          - name: run-predict-with-params
+            dependencies: [ start-pipeline ]
+            template: run-predict-wt
+            arguments:
+              parameters:
+                - name: DEP
+                  value: "{{item.DEP}}"
+                - name: YEAR
+                  value: "{{item.YEAR}}"
+            # Pass the inputs to the task using "withParam"
+            withParam: "{{workflow.parameters.predict-conf-list}}"
+
+    # Now task container templates are defined
+    # Worker template for task 0 : start-pipeline
+    - name: start-pipeline-wt
+      inputs:
+      container:
+        image: busybox
+        command: [ sh, -c ]
+        args: [ "echo Starting pipeline" ]
+
+    # Worker template for task-1 : train model with params
+    - name: run-predict-wt
+      inputs:
+        parameters:
+          - name: DEP
+          - name: YEAR
+      container:
+        image: inseefrlab/satellite-images-dev:v0.0.2
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 3
+        command: ["/bin/bash", -c]
+        args: ["git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
+              cd satellite-images-inference/ &&
+              python src/make_predictions.py --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}}"
+              ]
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+        env:
+          # env var for s3 connexion
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: accessKey
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: secretKey
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+          - name: AWS_S3_ENDPOINT
+            value: minio.lab.sspcloud.fr

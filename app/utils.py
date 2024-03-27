@@ -301,7 +301,8 @@ def make_prediction(
     )
 
     # Make prediction using the model
-    prediction = torch.tensor(model.predict(normalized_si.numpy()))
+    with torch.no_grad():
+        prediction = torch.tensor(model.predict(normalized_si.numpy()))
 
     # Produce mask from prediction
     mask = produce_mask(prediction, model, module_name, image.array.shape[-2:])

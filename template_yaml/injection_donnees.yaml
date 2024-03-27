@@ -1,6 +1,6 @@
 mc cp
 kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter
-chmod -R a+rw /opt/geoserver/data_dir   # Donne tous les droite pour écrire !! car il y a un blocage après injection a posteriori
+chmod -R a+rw ../opt/geoserver/data_dir   # Donne tous les droite pour écrire !! car il y a un blocage après injection a posteriori
 
 kubectl cp 
 
@@ -22,7 +22,7 @@ mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/MAYOTTE/2020/ MAYO
 mkdir MAYOTTE_TIF_2020/
 # ici lancer le code de transformation
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MAYOTTE_PLEIADES_2020
-kubectl cp  MAYOTTE_TIF_2020 projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/MAYOTTE_PLEIADES_2020
+kubectl cp  MAYOTTE_TIF_2020/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/MAYOTTE_PLEIADES_2020/
 
 
 kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter

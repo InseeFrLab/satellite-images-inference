@@ -107,7 +107,7 @@ async def main(dep: str, year: int):
     images = images
 
     urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(images)
-    timeout = aiohttp.ClientTimeout(total=60*10)
+    timeout = aiohttp.ClientTimeout(total=60*60*10) # 10h de timeout
     async with aiohttp.ClientSession(timeout=timeout) as session:
         tasks = [fetch(session, url, image) for url, image in zip(urls, images)]
         responses = await tqdm.gather(*tasks)  # Gather responses asynchronously

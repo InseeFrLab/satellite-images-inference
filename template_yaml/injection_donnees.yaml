@@ -8,7 +8,22 @@ mc cp --recursive s3/projet-slums-detection/data-raw/SENTINEL2/GUADELOUPE/2022/ 
 mc cp --recursive s3/projet-slums-detection/data-raw/SENTINEL2/MARTINIQUE/2022/ MARTINIQUE
 mc cp --recursive s3/projet-slums-detection/data-geoserver/GUADELOUPE/2022 GUADELOUPE/2022
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/GUADELOUPE/2022
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MAYOTTE/2020
 
 kubectl cp /path/to/local/directory <namespace>/<pod-name>:/path/in/pod
 kubectl cp  MARTINIQUE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/SENTINEL2/MARTINIQUE
 kubectl cp  GUADELOUPE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/SENTINEL2/GUADELOUPE
+
+
+mkdir tiff
+mkdir MAYOTTE
+mkdir MAYOTTE/2020
+mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/MAYOTTE/2020/ MAYOTTE/2020/
+mkdir MAYOTTE_TIF_2020/
+# ici lancer le code de transformation
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MAYOTTE_PLEIADES_2020
+kubectl cp  MAYOTTE_TIF_2020 projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/MAYOTTE_PLEIADES_2020
+
+
+kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter
+chmod -R a+rw /opt/geoserver/data_dir 

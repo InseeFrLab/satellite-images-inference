@@ -1,4 +1,3 @@
-import requests
 import geopandas as gpd
 from tqdm import tqdm
 import pandas as pd
@@ -6,6 +5,8 @@ import argparse
 from s3fs import S3FileSystem
 import os
 import pyarrow.dataset as ds
+import asyncio
+import aiohttp
 
 
 # Command-line arguments
@@ -74,7 +75,12 @@ def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDa
     return gpd.GeoDataFrame(data, geometry="geometry", crs=data.loc[0, "CRS"])
 
 
-def main(dep: str, year: int):
+async def fetch(session, url, image):
+    async with session.get(url, params={"image": image, "polygons": "True"}) as response:
+        return await response.text()
+
+
+async def main(dep: str, year: int):
     """
     Perform satellite image inference and save the predictions.
 
@@ -98,37 +104,35 @@ def main(dep: str, year: int):
         "filename",
     ].tolist()
 
-    # Request the API to make predictions
-    url = "https://satellite-images-inference.lab.sspcloud.fr/predict_image"
-    response = [
-        requests.get(
-            url,
-            params={
-                "image": image,
-                "polygons": True,
-            },
-        )
-        for image in tqdm(images)
-    ]
+    images = images
+
+    urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(images)
+    timeout = aiohttp.ClientTimeout(total=60*10)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        tasks = [fetch(session, url, image) for url, image in tqdm(zip(urls, images))]
+        responses = await asyncio.gather(*tasks)  # Gather responses asynchronously
 
     preds = []
-    for i in range(len(response)):
-        if response[i].status_code != 200:
-            print(f"Error with image {images[i]}")
-        else:
-            gdf = gpd.GeoDataFrame.from_features(response[i].json()["features"])
+    for i in range(len(responses)):
+        try:
+            gdf = gpd.read_file(responses[i], driver='GeoJSON')
             gdf["filename"] = images[i]
             preds.append(gdf)
+        except Exception as e:
+            print(f"Error with image {images[i]}: {str(e)}")
 
     predictions = pd.concat(preds)
     predictions.crs = roi.crs
 
     predictions_path = (
-        f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/predictions.parquet"
+        f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/predictions"
     )
-    predictions.to_parquet(predictions_path, filesystem=fs)
+    predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
+
+    with fs.open(f"{predictions_path}.gpkg", "wb") as file:
+        predictions.to_file(file, driver="GPKG")
 
 
 if __name__ == "__main__":
     args_dict = vars(args)
-    main(**args_dict)
+    asyncio.run(main(**args_dict))

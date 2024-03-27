@@ -1,5 +1,5 @@
 import geopandas as gpd
-from tqdm import tqdm
+from tqdm.asyncio import tqdm
 import pandas as pd
 import argparse
 from s3fs import S3FileSystem
@@ -109,8 +109,8 @@ async def main(dep: str, year: int):
     urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(images)
     timeout = aiohttp.ClientTimeout(total=60*10)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        tasks = [fetch(session, url, image) for url, image in tqdm(zip(urls, images))]
-        responses = await asyncio.gather(*tasks)  # Gather responses asynchronously
+        tasks = [fetch(session, url, image) for url, image in zip(urls, images)]
+        responses = await tqdm.gather(*tasks)  # Gather responses asynchronously
 
     preds = []
     for i in range(len(responses)):

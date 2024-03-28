@@ -115,10 +115,8 @@ async def main(dep: str, year: int):
         "filename",
     ].tolist()
 
-    images = images
-
     urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(images)
-    timeout = aiohttp.ClientTimeout(total=60 * 10)  # 10 minutes timeout
+    timeout = aiohttp.ClientTimeout(total=60 * 60 * 10)  # 10 heures timeout
 
     # Create an asynchronous HTTP client session
     async with aiohttp.ClientSession(timeout=timeout) as session:

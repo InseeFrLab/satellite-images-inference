@@ -7,6 +7,7 @@ import os
 import pyarrow.dataset as ds
 import asyncio
 import aiohttp
+import pickle
 
 
 # Command-line arguments
@@ -104,14 +105,18 @@ async def main(dep: str, year: int):
         "filename",
     ].tolist()
 
-    images = images
+    images = images[:50]
 
     urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(images)
     timeout = aiohttp.ClientTimeout(total=60*60*10) # 10h de timeout
     async with aiohttp.ClientSession(timeout=timeout) as session:
         tasks = [fetch(session, url, image) for url, image in zip(urls, images)]
         responses = await tqdm.gather(*tasks)  # Gather responses asynchronously
-
+    
+    # Save the list to a file
+    with fs.open('projet-slums-detection/data-prediction/responses.pkl', 'wb') as file:
+        pickle.dump(responses, file)
+    
     preds = []
     for i in range(len(responses)):
         try:

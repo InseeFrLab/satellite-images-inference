@@ -157,7 +157,7 @@ async def main(dep: str, year: int):
         counter += 1
 
     # Filter out images with None predictions from the result dictionary
-    result = {im: pred for im, pred in result.items() if v is not None}
+    result = {im: pred for im, pred in result.items() if pred is not None}
 
     preds = []
     for im, pred in result.items():

@@ -4,33 +4,40 @@ chmod -R a+rw ../opt/geoserver/data_dir   # Donne tous les droite pour écrire !
 
 kubectl cp 
 
-mc cp --recursive s3/projet-slums-detection/data-raw/SENTINEL2/GUADELOUPE/2022/ GUADELOUPE
 mc cp --recursive s3/projet-slums-detection/data-raw/SENTINEL2/MARTINIQUE/2022/ MARTINIQUE
-mc cp --recursive s3/projet-slums-detection/data-geoserver/GUADELOUPE/2022 GUADELOUPE/2022
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/GUADELOUPE/2022
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MAYOTTE/2020
+mc cp --recursive s3/projet-slums-detection/data-raw/SENTINEL2/MARTINIQUE/2022/ MARTINIQUE
+mc cp --recursive s3/projet-slums-detection/data-geoserver/MARTINIQUE/2022 MARTINIQUE/2022
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MARTINIQUE/2022
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MAYOTTE/2018
 
 kubectl cp /path/to/local/directory <namespace>/<pod-name>:/path/in/pod
 kubectl cp  MARTINIQUE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/SENTINEL2/MARTINIQUE
-kubectl cp  GUADELOUPE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/SENTINEL2/GUADELOUPE
+kubectl cp  MARTINIQUE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/SENTINEL2/MARTINIQUE
 
 
 mkdir tiff
-mkdir GUADELOUPE
-mkdir GUADELOUPE/2020
-mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/GUADELOUPE/2020/ GUADELOUPE/2020/
-mkdir GUADELOUPE_TIF_2020/
+mkdir MARTINIQUE
+mkdir MARTINIQUE/2018
+mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/MARTINIQUE/2018/ MARTINIQUE/2018/
+mkdir MARTINIQUE_TIF_2018/
+
 # ici lancer le code de transformation
-mc cp --recursive  GUADELOUPE_TIF_2020/ s3/projet-slums-detection/data-geoserver/GUADELOUPE/2020
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/GUADELOUPE_PLEIADES_2020
-kubectl cp  GUADELOUPE_TIF_2020/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/GUADELOUPE_PLEIADES_2020/
+mc cp --recursive  MARTINIQUE_TIF_2018/ s3/projet-slums-detection/data-geoserver/MARTINIQUE/2018
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MARTINIQUE_PLEIADES_2018
+kubectl cp  MARTINIQUE_TIF_2018/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/MARTINIQUE_PLEIADES_2018/
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
 
-kubectl cp  ilots_976.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/ilots/
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
+#kubectl cp  ilots_976.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/ilots/
+#kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
 
 
 
 kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter
 chmod -R a+rw /opt/geoserver/data_dir 
+
+mc cp s3/projet-slums-detection/data-prediction/PLEIADES/MAYOTTE/2020/predictions.gpkg predictions_mayotte_2020.gpkg
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/predictions
+predictions_mayotte_2020.gpkg
+kubectl cp  predictions_mayotte_2020.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/predictions/predictions_mayotte_2020.gpkg
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
 

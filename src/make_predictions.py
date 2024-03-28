@@ -84,10 +84,10 @@ async def fetch(session, url, image):
         print(f"Request timed out for URL: {url} and image: {image}")
         return None
     except aiohttp.ClientPayloadError as e:
-        print(f"ClientPayloadError for URL: {url}, Error: {e}")
+        print(f"ClientPayloadError for URL: {url}, Error: {e}, Image: {image}")
         return None
     except Exception as e:
-        print(f"An error occurred for URL: {url}, Error: {e}")
+        print(f"An error occurred for URL: {url}, Error: {e}, Image: {image}")
         return None
 
 
@@ -166,7 +166,7 @@ async def main(dep: str, year: int):
             gdf["filename"] = im
             preds.append(gdf)
         except Exception as e:
-            print(f"Error with image {im}: {str(e)} \n {pred}")
+            print(f"Error with image {im}: {str(e)}")
 
     predictions = pd.concat(preds)
     predictions.crs = roi.crs

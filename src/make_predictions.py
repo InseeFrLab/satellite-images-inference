@@ -7,6 +7,7 @@ import os
 import pyarrow.dataset as ds
 import asyncio
 import aiohttp
+import libpysal
 
 
 # Command-line arguments
@@ -89,6 +90,25 @@ async def fetch(session, url, image):
     except Exception as e:
         print(f"An error occurred for URL: {url}, Error: {e}, Image: {image}")
         return None
+
+
+def merge_adjacent_polygons(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Merge adjacent polygons in a GeoDataFrame.
+
+    Args:
+        gdf (gpd.GeoDataFrame): The GeoDataFrame to process.
+
+    Returns:
+        gpd.GeoDataFrame: The GeoDataFrame with adjacent polygons merged.
+    """
+    # TODO: potentially add tiny buffer on polygons ?
+    # Create a spatial weights matrix
+    W = libpysal.weights.Queen.from_dataframe(gdf)
+    # Merge adjacent polygons
+    components = W.component_labels
+    merged_gdf = gdf.dissolve(by=components)
+    return merged_gdf
 
 
 async def main(dep: str, year: int):

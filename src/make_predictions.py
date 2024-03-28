@@ -109,9 +109,13 @@ async def main(dep: str, year: int):
     # Get Region of Interest
     roi = gpd.read_file(fs.open(f"projet-slums-detection/data-roi/{dep}.geojson", "rb"))
 
-    # Restrict to ROI
+    # # Restrict to ROI
+    # images = filename_table.loc[
+    #     filename_table.geometry.intersects(roi.geometry.iloc[0]),
+    #     "filename",
+    # ].tolist()
     images = filename_table.loc[
-        filename_table.geometry.intersects(roi.geometry.iloc[0]),
+        :,
         "filename",
     ].tolist()
 

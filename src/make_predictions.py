@@ -82,7 +82,7 @@ async def fetch(session, url, image):
             response_text = await response.text()
             return response_text
     except asyncio.TimeoutError:
-        print(f"Request timed out for URL: {url}")
+        print(f"Request timed out for URL: {url} and image: {image}")
         return None
     except aiohttp.ClientPayloadError as e:
         print(f"ClientPayloadError for URL: {url}, Error: {e}")
@@ -119,23 +119,55 @@ async def main(dep: str, year: int):
     images = images[:50]
 
     urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(images)
-    timeout = aiohttp.ClientTimeout(total=60*10) # 10min de timeout
+    timeout = aiohttp.ClientTimeout(total=60*10)  # 10 minutes timeout
+
+    # Create an asynchronous HTTP client session
     async with aiohttp.ClientSession(timeout=timeout) as session:
         tasks = [fetch(session, url, image) for url, image in zip(urls, images)]
-        responses = await tqdm.gather(*tasks)  # Gather responses asynchronously
-    
-    # Save the list to a file
-    with fs.open('projet-slums-detection/data-prediction/responses.pkl', 'wb') as file:
-        pickle.dump(responses, file)
-    
+        responses = await tqdm.gather(*tasks)
+
+    # Create a dictionary mapping images to their corresponding predictions
+    result = {k: v for k, v in zip(images, responses)}
+
+    # Get the list of failed images (predictions with None value)
+    failed_images = [k for k, v in result.items() if v is None]
+
+    # Set the maximum number of retries for failed images
+    max_retry = 5
+    counter = 0
+
+    # Retry failed images up to the maximum number of retries
+    while failed_images and counter < max_retry:
+        urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(failed_images)
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            tasks = [fetch(session, url, image) for url, image in zip(urls, failed_images)]
+            responses_retry = await tqdm.gather(*tasks)
+
+            result_retry = {k: v for k, v in zip(failed_images, responses_retry)}
+
+            # Update the list of failed images and successful images after retrying
+            failed_images = [k for k, v in result_retry.items() if v is None]
+            successed_images = [k for k, v in result_retry.items() if v is not None]
+
+            # Update the result dictionary with the retry results for successful images
+            for im in successed_images:
+                result[im] = result_retry[im]
+
+        counter += 1
+
+    # Filter out images with None predictions from the result dictionary
+    result = {im: pred for im, pred in result.items() if v is not None}
+
     preds = []
-    for i in range(len(responses)):
+    for im, pred in result.items():
         try:
-            gdf = gpd.read_file(responses[i], driver='GeoJSON')
-            gdf["filename"] = images[i]
+            # Read the prediction file as a GeoDataFrame
+            gdf = gpd.read_file(pred, driver='GeoJSON')
+            gdf["filename"] = im
             preds.append(gdf)
         except Exception as e:
-            print(f"Error with image {images[i]}: {str(e)}")
+            print(f"Error with image {im}: {str(e)}")
 
     predictions = pd.concat(preds)
     predictions.crs = roi.crs

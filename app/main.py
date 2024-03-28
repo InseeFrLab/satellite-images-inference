@@ -12,6 +12,7 @@ from shapely.geometry import box
 from contextlib import asynccontextmanager
 from typing import Dict
 from fastapi import FastAPI, Query, Response
+from app.logger_config import configure_logger
 from app.utils import (
     get_file_system,
     get_model,
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI):
         app (FastAPI): The FastAPI application.
     """
     global \
+        logger, \
         model, \
         n_bands, \
         tiles_size, \
@@ -42,6 +44,8 @@ async def lifespan(app: FastAPI):
         normalization_std
 
     gdal.UseExceptions()
+    logger = configure_logger()
+
     model_name: str = os.getenv("MLFLOW_MODEL_NAME")
     model_version: str = os.getenv("MLFLOW_MODEL_VERSION")
     # Load the ML model
@@ -94,6 +98,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
         ValueError: If the dimension of the image is not divisible by the tile size used during training or if the dimension is smaller than the tile size.
 
     """
+    logger.info(f"Predict image endpoint accessed with image: {image}")
 
     lsi = predict(
         image=image,
@@ -128,6 +133,10 @@ def predict_cluster(
     Returns:
         Dict: Response containing the predicted cluster.
     """
+    logger.info(
+        f"Predict cluster endpoint accessed with cluster_id: {cluster_id}, year: {year}, and department: {dep}"
+    )
+
     fs = get_file_system()
 
     with fs.open("projet-slums-detection/ilots/ilots.gpkg", "rb") as f:
@@ -185,6 +194,10 @@ def predict_bbox(
     Returns:
         Dict: A dictionary containing the predicted bounding box coordinates.
     """
+    logger.info(
+        f"Predict bbox endpoint accessed with bounding box coordinates: ({xmin}, {xmax}, {ymin}, {ymax}), epsg: {epsg}, year: {year}, and department: {dep}"
+    )
+
     fs = get_file_system()
 
     # Get the filename to polygons mapping

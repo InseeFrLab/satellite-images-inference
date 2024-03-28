@@ -22,6 +22,9 @@ from shapely.ops import unary_union
 import pandas as pd
 import pyarrow.dataset as ds
 from tqdm import tqdm
+from app.logger_config import configure_logger
+
+logger = configure_logger()
 
 
 def get_file_system() -> S3FileSystem:

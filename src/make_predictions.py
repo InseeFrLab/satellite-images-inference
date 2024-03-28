@@ -7,7 +7,6 @@ import os
 import pyarrow.dataset as ds
 import asyncio
 import aiohttp
-import pickle
 
 
 # Command-line arguments
@@ -116,10 +115,10 @@ async def main(dep: str, year: int):
         "filename",
     ].tolist()
 
-    images = images[:50]
+    images = images
 
-    urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(images)
-    timeout = aiohttp.ClientTimeout(total=60*10)  # 10 minutes timeout
+    urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(images)
+    timeout = aiohttp.ClientTimeout(total=60 * 10)  # 10 minutes timeout
 
     # Create an asynchronous HTTP client session
     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -138,7 +137,9 @@ async def main(dep: str, year: int):
 
     # Retry failed images up to the maximum number of retries
     while failed_images and counter < max_retry:
-        urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(failed_images)
+        urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(
+            failed_images
+        )
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             tasks = [fetch(session, url, image) for url, image in zip(urls, failed_images)]
@@ -163,18 +164,16 @@ async def main(dep: str, year: int):
     for im, pred in result.items():
         try:
             # Read the prediction file as a GeoDataFrame
-            gdf = gpd.read_file(pred, driver='GeoJSON')
+            gdf = gpd.read_file(pred, driver="GeoJSON")
             gdf["filename"] = im
             preds.append(gdf)
         except Exception as e:
-            print(f"Error with image {im}: {str(e)}")
+            print(f"Error with image {im}: {str(e)} \n {pred}")
 
     predictions = pd.concat(preds)
     predictions.crs = roi.crs
 
-    predictions_path = (
-        f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/predictions"
-    )
+    predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/predictions"
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 
     with fs.open(f"{predictions_path}.gpkg", "wb") as file:

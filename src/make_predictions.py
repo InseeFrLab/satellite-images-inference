@@ -77,8 +77,19 @@ def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDa
 
 
 async def fetch(session, url, image):
-    async with session.get(url, params={"image": image, "polygons": "True"}) as response:
-        return await response.text()
+    try:
+        async with session.get(url, params={"image": image, "polygons": "True"}) as response:
+            response_text = await response.text()
+            return response_text
+    except asyncio.TimeoutError:
+        print(f"Request timed out for URL: {url}")
+        return None
+    except aiohttp.ClientPayloadError as e:
+        print(f"ClientPayloadError for URL: {url}, Error: {e}")
+        return None
+    except Exception as e:
+        print(f"An error occurred for URL: {url}, Error: {e}")
+        return None
 
 
 async def main(dep: str, year: int):
@@ -108,7 +119,7 @@ async def main(dep: str, year: int):
     images = images[:50]
 
     urls = ['https://satellite-images-inference.lab.sspcloud.fr/predict_image'] * len(images)
-    timeout = aiohttp.ClientTimeout(total=60*60*10) # 10h de timeout
+    timeout = aiohttp.ClientTimeout(total=60*10) # 10min de timeout
     async with aiohttp.ClientSession(timeout=timeout) as session:
         tasks = [fetch(session, url, image) for url, image in zip(urls, images)]
         responses = await tqdm.gather(*tasks)  # Gather responses asynchronously

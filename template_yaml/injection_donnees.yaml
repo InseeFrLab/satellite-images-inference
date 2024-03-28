@@ -16,14 +16,21 @@ kubectl cp  GUADELOUPE/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw
 
 
 mkdir tiff
-mkdir MAYOTTE
-mkdir MAYOTTE/2020
-mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/MAYOTTE/2020/ MAYOTTE/2020/
-mkdir MAYOTTE_TIF_2020/
+mkdir GUADELOUPE
+mkdir GUADELOUPE/2020
+mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/GUADELOUPE/2020/ GUADELOUPE/2020/
+mkdir GUADELOUPE_TIF_2020/
 # ici lancer le code de transformation
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MAYOTTE_PLEIADES_2020
-kubectl cp  MAYOTTE_TIF_2020/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/MAYOTTE_PLEIADES_2020/
+mc cp --recursive  GUADELOUPE_TIF_2020/ s3/projet-slums-detection/data-geoserver/GUADELOUPE/2020
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/GUADELOUPE_PLEIADES_2020
+kubectl cp  GUADELOUPE_TIF_2020/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/GUADELOUPE_PLEIADES_2020/
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
+
+kubectl cp  ilots_976.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/ilots/
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
+
 
 
 kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter
 chmod -R a+rw /opt/geoserver/data_dir 
+

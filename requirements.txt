@@ -14,3 +14,4 @@ albumentations==1.4.1
 transformers==4.37.2
 torchvision==0.17.1
 geopandas==0.14.3
+libpysal==4.10

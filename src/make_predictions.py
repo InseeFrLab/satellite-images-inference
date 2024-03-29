@@ -189,7 +189,7 @@ async def main(dep: str, year: int):
     # Filter out images with failed predictions from the result dictionary
     predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
-
+    # predictions = merge_adjacent_polygons(predictions)
     predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/predictions"
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 

@@ -3,6 +3,7 @@ Main file for the API.
 """
 
 import os
+import gc
 import mlflow
 from osgeo import gdal
 import geopandas as gpd
@@ -99,6 +100,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
 
     """
     logger.info(f"Predict image endpoint accessed with image: {image}")
+    gc.collect()
 
     lsi = predict(
         image=image,

@@ -1,6 +1,6 @@
 FROM inseefrlab/onyxia-python-pytorch:py3.11.6
 
-ENV TIMEOUT=300
+ENV TIMEOUT=3600
 
 ENV PROJ_LIB=/opt/mamba/share/proj
 

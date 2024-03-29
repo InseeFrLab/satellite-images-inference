@@ -33,11 +33,9 @@ kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoser
 
 
 kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter
-chmod -R a+rw /opt/geoserver/data_dir 
 
 mc cp s3/projet-slums-detection/data-prediction/PLEIADES/MAYOTTE/2020/predictions.gpkg predictions_mayotte_2020.gpkg
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/predictions
-predictions_mayotte_2020.gpkg
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/predictionspredictions_mayotte_2020.gpkg
 kubectl cp  predictions_mayotte_2020.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/predictions/predictions_mayotte_2020.gpkg
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
 

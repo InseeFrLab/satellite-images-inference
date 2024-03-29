@@ -197,6 +197,8 @@ async def main(dep: str, year: int):
     with fs.open(f"{predictions_path}.gpkg", "wb") as file:
         predictions.to_file(file, driver="GPKG")
 
+    print(f"{failed_images}")
+
 
 if __name__ == "__main__":
     args_dict = vars(args)

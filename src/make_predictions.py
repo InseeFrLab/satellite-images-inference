@@ -150,8 +150,16 @@ async def main(dep: str, year: int):
     # Create a dictionary mapping images to their corresponding predictions
     result = {k: v for k, v in zip(images, responses)}
 
-    # Get the list of failed images (predictions with None value)
-    failed_images = [k for k, v in result.items() if v is None]
+    failed_images = []
+    for im, pred in result.items():
+        try:
+            # Read the prediction file as a GeoDataFrame
+            result[im] = gpd.read_file(pred, driver="GeoJSON")
+            result[im]["filename"] = im
+        except Exception as e:
+            print(f"Error with image {im}: {str(e)}")
+            # Get the list of failed images
+            failed_images.append(im)
 
     # Set the maximum number of retries for failed images
     max_retry = 5
@@ -169,30 +177,21 @@ async def main(dep: str, year: int):
 
             result_retry = {k: v for k, v in zip(failed_images, responses_retry)}
 
-            # Update the list of failed images and successful images after retrying
-            failed_images = [k for k, v in result_retry.items() if v is None]
-            successed_images = [k for k, v in result_retry.items() if v is not None]
-
-            # Update the result dictionary with the retry results for successful images
-            for im in successed_images:
-                result[im] = result_retry[im]
+            failed_images = []
+            for im, pred in result_retry.items():
+                try:
+                    # Update the result dictionary with the retry results for successful images
+                    result[im] = gpd.read_file(pred, driver="GeoJSON")
+                    result[im]["filename"] = im
+                except Exception as e:
+                    print(f"Error with image {im}: {str(e)}")
+                    # Get the list of failed images
+                    failed_images.append(im)
 
         counter += 1
 
-    # Filter out images with None predictions from the result dictionary
-    result = {im: pred for im, pred in result.items() if pred is not None}
-
-    preds = []
-    for im, pred in result.items():
-        try:
-            # Read the prediction file as a GeoDataFrame
-            gdf = gpd.read_file(pred, driver="GeoJSON")
-            gdf["filename"] = im
-            preds.append(gdf)
-        except Exception as e:
-            print(f"Error with image {im}: {str(e)}")
-
-    predictions = pd.concat(preds)
+    # Filter out images with failed predictions from the result dictionary
+    predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
 
     predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/predictions"

@@ -154,11 +154,12 @@ async def main(dep: str, year: int):
             result[im]["filename"] = im
         except Exception as e:
             print(f"Error with image {im}: {str(e)}")
+            print(f"Prediction returned: {pred}")
             # Get the list of failed images
             failed_images.append(im)
 
     # Set the maximum number of retries for failed images
-    max_retry = 5
+    max_retry = 50
     counter = 0
 
     # Retry failed images up to the maximum number of retries

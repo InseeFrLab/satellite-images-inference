@@ -5,4 +5,4 @@ metadata:
 spec:
   resources:
     requests:
-      storage: 100Gi
+      storage: 150Gi

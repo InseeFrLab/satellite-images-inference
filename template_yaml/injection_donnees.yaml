@@ -44,3 +44,12 @@ mc cp --recursive s3/projet-slums-detection/data-prediction/PLEIADES/ prediction
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/data_predictions
 kubectl cp  predictions/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/data_predictions
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
+
+
+
+kubectl exec -it geoserver-geoserver-745f59d5cb-zw4hv -- /bin/bash  # ctrl + D pour quitter
+
+mc cp --recursive s3/projet-slums-detection/data-geoserver/MARTINIQUE/2018/ MARTINIQUE/2018
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/MARTINIQUE
+kubectl cp  MARTINIQUE/2018/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/MARTINIQUE/2018
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 

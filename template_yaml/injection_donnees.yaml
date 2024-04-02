@@ -39,3 +39,8 @@ kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/dat
 kubectl cp  predictions_mayotte_2020.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/predictions/predictions_mayotte_2020.gpkg
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 
 
+# copie de toutes les predictions
+mc cp --recursive s3/projet-slums-detection/data-prediction/PLEIADES/ predictions
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/data_predictions
+kubectl cp  predictions/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/data_predictions
+kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir 

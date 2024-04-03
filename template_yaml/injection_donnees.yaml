@@ -57,7 +57,7 @@ kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoser
 
 departement="GUADELOUPE"
 annee="2022"
-
+kubectl
 mc cp --recursive s3/projet-slums-detection/data-geoserver/${departement}/${annee}/ ${departement}/${annee}
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/${departement}
 kubectl cp  ${departement}/${annee}/ projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/${departement}/${annee}

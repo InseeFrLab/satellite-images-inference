@@ -19,9 +19,10 @@ geoserver:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          mc cp --recursive s3/projet-slums-detection/data-geoserver/MARTINIQUE/2022/ /dossierimage/data_dir/MARTINIQUE/2022 && \
-          mc cp --recursive s3/projet-slums-detection/data-geoserver/GUADELOUPE/2022/ /dossierimage/data_dir/GUADELOUPE/2022 && \
+          mc cp --recursive s3/projet-slums-detection/data-geoserver/ /dossierimage/data_dir/PLEIADES && \
+          mc cp --recursive s3/projet-slums-detection/data-prediction/ /dossierimage/data_dir/PREDICTIONS && \
           mc cp --recursive s3/projet-slums-detection/data-geoserver/ilots/  /dossierimage/data_dir/ilots
+          
         envFrom:
         - secretRef:
             name: env-secrets-slums-detection
@@ -36,7 +37,7 @@ geoserver:
       existingClaim: false
       mountPath: /opt/geoserver/data_dir
       subPath: "data_dir"
-      size: 40Gi
+      size: 200Gi
       storageClass: ""
       accessModes:
         - ReadWriteOnce
@@ -53,8 +54,8 @@ geoserver:
       annotations: {}
   resources:
     requests:
-      memory: "16Gi"  # Request at least 2GB of RAM.
-      cpu: "3000m"   # Request at least 1000 millicores, equivalent to 1 CPU core.
+      memory: "30Gi"  # Request at least 2GB of RAM.
+      cpu: "4000m"   # Request at least 1000 millicores, equivalent to 1 CPU core.
     limits:
       memory: "100Gi"  # Limit to a maximum of 4GB of RAM.
       cpu: "30000m"   

@@ -59,10 +59,11 @@ kubectl cp  ${departement}/${annee}/ projet-slums-detection/geoserver-geoserver-
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir
 
 
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- mkdir -p /opt/geoserver/data_dir/overlay
-kubectl cp  suppression_mayotte_2020_2023.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/overlay/suppression_mayotte_2020_2023.gpkg
-kubectl cp  creation_mayotte_2020_2023.gpkg projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/opt/geoserver/data_dir/overlay/creation_mayotte_2020_2023.gpkg
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- chmod -R a+rw ../opt/geoserver/data_dir
+pod="ggg-geoserver-68f45b8854-v6cbz"
+kubectl exec ${pod} -- mkdir -p /opt/geoserver/data_dir/overlay
+kubectl cp  suppression_mayotte_2020_2023.gpkg projet-slums-detection/${pod}:/opt/geoserver/data_dir/overlay/suppression_mayotte_2020_2023.gpkg
+kubectl cp  creation_mayotte_2020_2023.gpkg projet-slums-detection/${pod}:/opt/geoserver/data_dir/overlay/creation_mayotte_2020_2023.gpkg
+kubectl exec ${pod} -- chmod -R a+rw ../opt/geoserver/data_dir
 
 
 # installation extension COG (cloud optimized geotiff)
@@ -80,6 +81,5 @@ kubectl cp  geoserver-2.23-SNAPSHOT-cog-plugin.zip projet-slums-detection/geoser
 # unzip dans le pod
 kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- unzip /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/geoserver-2.23-SNAPSHOT-cog-plugin.zip
 
-service tomcat stop
-service tomcat start
-service tomcat restart
+# Adapter la stratégie de redeploiement  kubectl patch deployment geoserver-geoserver -p '{"spec":{"strategy":{"type":"Recreate"}}}'
+kubectl patch deployment geoserver-geoserver -p '{"spec":{"strategy":{"type":"Recreate"}}}'

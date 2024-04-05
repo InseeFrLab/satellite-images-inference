@@ -3,7 +3,7 @@ kind: StatefulSet
 metadata:
   name: geoserver-instance
 spec:
-  serviceName: "geoserver"
+  serviceName: "geoserver-instance"
   replicas: 1
   selector:
     matchLabels:
@@ -13,20 +13,20 @@ spec:
       labels:
         app: geoserver-instance
     spec:
-      initContainers:
-        - name: install-extensions
-          image: minio/mc
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              mc cp --recursive s3/projet-slums-detection/data-geoserver/geoserver-2.23-SNAPSHOT-cog-plugin/ /geoserver-extensions/ 
+      # initContainers:
+      #   - name: install-extensions
+      #     image: minio/mc
+      #     command: ["/bin/sh", "-c"]
+      #     args:
+      #       - |
+      #         mc cp --recursive s3/projet-slums-detection/data-geoserver/geoserver-2.23-SNAPSHOT-cog-plugin/ /geoserver-extensions/ 
   
-          envFrom:
-          - secretRef:
-              name: env-secrets-slums-detection
-          volumeMounts:
-            - name: geoserver-extensions
-              mountPath: /geoserver-extensions
+      #     envFrom:
+      #     - secretRef:
+      #         name: env-secrets-slums-detection
+      #     volumeMounts:
+      #       - name: geoserver-extensions
+      #         mountPath: /geoserver-extensions
       containers:
         - name: geoserver
           image: kartoza/geoserver:2.23.1
@@ -38,17 +38,45 @@ spec:
               value: "admin"
             - name: GEOSERVER_CSRF_DISABLED
               value: "true"
+            - name: INSTALL_EXTENSIONS
+              value: "true"
+            - name: COMMUNITY_EXTENSIONS
+              value: "cog"
                 
-          ports:
-            - name: http-geoserver
-              containerPort: 8080
+          # ports:
+          #   - name: http-geoserver
+          #     containerPort: 8080
+          # startupProbe:
+          #   httpGet:
+          #     path: /geoserver
+          #     port: http-geoserver
+          #   failureThreshold: 60
+          #   periodSeconds: 5
+          # livenessProbe:
+          #   httpGet:
+          #     path: /geoserver
+          #     port: http-geoserver
+          #     scheme: HTTP
+          #   initialDelaySeconds: 30  
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          # readinessProbe:
+          #   httpGet:
+          #     path: /geoserver
+          #     port: http-geoserver
+          #     scheme: HTTP
+          #   initialDelaySeconds: 30  
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
           volumeMounts:
             - name: geoserver-data-dir
               mountPath: /opt/geoserver/data_dir
             - name: geowebcache-cache-dir
               mountPath: /opt/geoserver/data_dir/gwc
-            - name: geoserver-extensions
-              mountPath: /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/
+            # - name: geoserver-extensions
+            #   mountPath: /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/
           resources:
             requests:
               memory: "30Gi"
@@ -63,6 +91,6 @@ spec:
         - name: geowebcache-cache-dir
           persistentVolumeClaim:
             claimName: geowebcache-cache-dir-pvc
-        - name: geoserver-extensions
-          persistentVolumeClaim:
-            claimName: geoserver-extensions-pvc
+        # - name: geoserver-extensions
+        #   persistentVolumeClaim:
+        #     claimName: geoserver-extensions-pvc

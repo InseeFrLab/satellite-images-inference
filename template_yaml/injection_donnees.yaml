@@ -75,11 +75,19 @@ find / -type d -name 'WEB-INF' 2>/dev/null | grep -E '.*\/webapps\/.*\/WEB-INF'
 # recup dans le service
 mc cp s3/projet-slums-detection/data-geoserver/geoserver-2.23-SNAPSHOT-cog-plugin.zip geoserver-2.23-SNAPSHOT-cog-plugin.zip
 
+
+
 # injection dans le pod 
-kubectl cp  geoserver-2.23-SNAPSHOT-cog-plugin.zip projet-slums-detection/geoserver-geoserver-745f59d5cb-zw4hv:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/geoserver-2.23-SNAPSHOT-cog-plugin.zip
+kubectl cp  geoserver-2.23-SNAPSHOT-cog-plugin.zip projet-slums-detection/geoserver-instance-0:/usr/local/tomcat/webapps/geoserver/WEB-INF/lib/geoserver-2.23-SNAPSHOT-cog-plugin.zip
 
 # unzip dans le pod
-kubectl exec geoserver-geoserver-745f59d5cb-zw4hv -- unzip /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/geoserver-2.23-SNAPSHOT-cog-plugin.zip
+kubectl exec geoserver-instance-0 -- unzip /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/geoserver-2.23-SNAPSHOT-cog-plugin.zip
+kubectl exec geoserver-instance-0 -- rm /usr/local/tomcat/webapps/geoserver/WEB-INF/lib/geoserver-2.23-SNAPSHOT-cog-plugin.zip
 
-# Adapter la stratégie de redeploiement  kubectl patch deployment geoserver-geoserver -p '{"spec":{"strategy":{"type":"Recreate"}}}'
-kubectl patch deployment geoserver-geoserver -p '{"spec":{"strategy":{"type":"Recreate"}}}'
+kubectl exec -it geoserver-instance-0 -- /bin/bash  # ctrl + D pour quitter
+
+
+# je kille le pod pour relancement geoserver 
+kubectl delete pods geoserver-instance-0
+# # Adapter la stratégie de redeploiement  kubectl patch deployment geoserver-geoserver -p '{"spec":{"strategy":{"type":"Recreate"}}}'
+# kubectl patch deployment geoserver-geoserver -p '{"spec":{"strategy":{"type":"Recreate"}}}'

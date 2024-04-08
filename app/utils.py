@@ -179,6 +179,10 @@ def preprocess_image(
         model, tiles_size, augment_size, n_bands, normalization_mean, normalization_std
     )
 
+    # Deal when images to pred have more channels than images used during training
+    if len(normalization_mean) != image.array.shape[0]:
+        image.array = image.array[: len(normalization_mean)]
+
     # Apply transformation to image
     normalized_si = transform(image=np.transpose(image.array, [1, 2, 0]))["image"].unsqueeze(dim=0)
 

@@ -13,6 +13,7 @@ spec:
     parameters:
       - name: predict-conf-list
         value: '[
+            {"DEP": "MAYOTTE", "YEAR": "2023"},
             {"DEP": "MAYOTTE", "YEAR": "2022"},
             {"DEP": "MAYOTTE", "YEAR": "2020"},
             {"DEP": "MAYOTTE", "YEAR": "2019"},
@@ -26,7 +27,11 @@ spec:
             {"DEP": "MARTINIQUE", "YEAR": "2022"},
             {"DEP": "MARTINIQUE", "YEAR": "2018"},
 
-            {"DEP": "REUNION", "YEAR": "2022"}
+            {"DEP": "REUNION", "YEAR": "2023"},
+            {"DEP": "REUNION", "YEAR": "2022"},
+
+            {"DEP": "GUYANE", "YEAR": "2023"},
+            {"DEP": "GUYANE", "YEAR": "2022"}
             ]'
 
   templates:

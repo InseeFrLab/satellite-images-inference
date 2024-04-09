@@ -34,7 +34,7 @@ spec:
             - name: GEOSERVER_ADMIN_USER
               valueFrom:
                 secretKeyRef:
-                  name: mmy-geoserver-creds
+                  name: my-geoserver-creds
                   key: username
             - name: GEOSERVER_ADMIN_PASSWORD
               valueFrom:

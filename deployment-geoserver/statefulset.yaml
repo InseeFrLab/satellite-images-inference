@@ -21,12 +21,12 @@ spec:
             - configMapRef:
                 name: configmap-geoserver
           env:
-            - name: AWS_ACCESS_KEY_ID
+            - name: S3_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: my-s3-creds
                   key: accessKey
-            - name: AWS_SECRET_ACCESS_KEY
+            - name: S3_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: my-s3-creds

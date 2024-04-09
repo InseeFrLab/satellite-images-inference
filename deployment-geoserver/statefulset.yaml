@@ -27,7 +27,7 @@ spec:
             - name: INSTALL_EXTENSIONS
               value: "true"
             - name: COMMUNITY_EXTENSIONS
-              value: "cog-plugins"
+              value: "cog-plugin"
 
           volumeMounts:
             - name: geoserver-data-dir

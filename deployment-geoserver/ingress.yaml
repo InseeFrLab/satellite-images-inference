@@ -1,13 +1,13 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: geoserver-instance
+  name: geoserver-instance-test
 spec:
   tls: # https = http + tls -> couche de confidentialité, client et serveur ne parlent pas en clair mais definissent un tunnel de confidentialité dans lequel ils sont les seuls à comprendre le contenu
     - hosts:
-        - geoserver-de-fifou2.kub.sspcloud.fr
+        - geoserver-test.kub.sspcloud.fr
   rules:
-  - host:  geoserver-de-fifou2.kub.sspcloud.fr
+  - host:  geoserver-test.kub.sspcloud.fr
 
     http:
       paths:
@@ -15,6 +15,6 @@ spec:
         pathType: Prefix
         backend:
           service: # c'est bien le nom du service
-            name: geoserver-instance
+            name: geoserver-instance-test
             port:
               number: 8080

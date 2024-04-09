@@ -44,7 +44,7 @@ spec:
       volumes:
         - name: geoserver-data-dir
           persistentVolumeClaim:
-            claimName: geoserver-data-dir-pvc
+            claimName: geoserver-data-dir-pvc-test
         - name: geowebcache-cache-dir
           persistentVolumeClaim:
-            claimName: geowebcache-cache-dir-pvc
+            claimName: geowebcache-cache-dir-pvc-test

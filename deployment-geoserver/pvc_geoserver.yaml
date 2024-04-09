@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: geoserver-data-dir-pvc
+  name: geoserver-data-dir-pvc-test
 spec:
   accessModes:
     - ReadWriteOnce

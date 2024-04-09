@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: geowebcache-cache-dir-pvc
+  name: geowebcache-cache-dir-pvc-test
 spec:
   accessModes:
     - ReadWriteOnce

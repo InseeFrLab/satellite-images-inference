@@ -17,17 +17,30 @@ spec:
         - name: geoserver
           image: kartoza/geoserver:2.25.0
           imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: configmap-geoserver
           env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: accessKey
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: secretKey
             - name: GEOSERVER_ADMIN_USER
-              value: "admin"
+              valueFrom:
+                secretKeyRef:
+                  name: mmy-geoserver-creds
+                  key: username
             - name: GEOSERVER_ADMIN_PASSWORD
-              value: "admin"
-            - name: GEOSERVER_CSRF_DISABLED
-              value: "true"
-            - name: INSTALL_EXTENSIONS
-              value: "true"
-            - name: COMMUNITY_EXTENSIONS
-              value: "cog-plugin"
+              valueFrom:
+                secretKeyRef:
+                  name: my-geoserver-creds
+                  key: pwd
 
           volumeMounts:
             - name: geoserver-data-dir
@@ -37,10 +50,10 @@ spec:
           resources:
             requests:
               memory: "1Gi"
-              cpu: "100m"
+              cpu: "1000m"
             limits:
               memory: "2Gi"
-              cpu: "200m"
+              cpu: "2000m"
       volumes:
         - name: geoserver-data-dir
           persistentVolumeClaim:

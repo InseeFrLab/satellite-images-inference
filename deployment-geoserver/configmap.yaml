@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-geoserver
+  namespace: projet-slums-detection
+data:
+  S3_SERVER_URL: minio.lab.sspcloud.fr
+  S3_ALIAS: s3
+  GEOSERVER_CSRF_DISABLED: "true"
+  INSTALL_EXTENSIONS: "true"
+  COMMUNITY_EXTENSIONS: cog-plugin
+  ACTIVATE_ALL_STABLE_EXTENSIONS: "true"
+  ACTIVATE_ALL_COMMUNITY_EXTENSIONS: "true"

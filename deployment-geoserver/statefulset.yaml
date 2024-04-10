@@ -27,6 +27,12 @@ spec:
                   name: my-s3-creds
                   key: accessKey
             - name: S3_PASSWORD
+            - name: IIO_S3_AWS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: accessKey
+            - name: IIO_S3_AWS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: my-s3-creds

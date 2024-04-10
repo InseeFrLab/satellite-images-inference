@@ -5,7 +5,12 @@ metadata:
   namespace: projet-slums-detection
 data:
   S3_SERVER_URL: minio.lab.sspcloud.fr
-  S3_ALIAS: s3
+  S3_ALIAS: S3
+  IIO_S3_AWS_CORE_POOL_SIZE: "50"
+  IIO_S3_AWS_MAX_POOL_SIZE: "128"
+  IIO_S3_AWS_KEEP_ALIVE_TIME: "10"
+  IIO_S3_AWS_REGION: us-east-1
+  IIO_S3_AWS_ENDPOINT: minio.lab.sspcloud.fr
   GEOSERVER_CSRF_DISABLED: "true"
   INSTALL_EXTENSIONS: "true"
   COMMUNITY_EXTENSIONS: cog-plugin

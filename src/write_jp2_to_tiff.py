@@ -4,7 +4,23 @@ from osgeo import gdal
 import os
 
 
-def convert_jp2_to_geotiff(file):
+def convert_jp2_to_geotiff(file: str):
+    """
+    Converts a JP2 image to GeoTIFF format and saves it to a specified S3 path.
+
+    Args:
+        file (str): The path to the JP2 image file.
+
+    Returns:
+        dict: A dictionary containing the result of the conversion and the path of the output file.
+            The dictionary has the following keys:
+            - "result" (str): The result of the conversion, either "OK" or "FAILED".
+            - "file" (str): The path of the output file.
+
+    Raises:
+        Exception: If there is an error opening the JP2 image file.
+
+    """
     try:
         # Open the .jp2 image
         ds = gdal.Open(f"/vsis3/{file}")
@@ -38,6 +54,7 @@ file_retrieved = [
     for file in fs.glob("projet-slums-detection/data-raw-tif/PLEIADES/**/**/*.tif")
 ]
 
+# TODO : PROBLEM -> now we have images only in tif format. Fix this issue
 while len(list_filename) > len(file_retrieved):
     file_missing = [
         f"projet-slums-detection/data-raw/PLEIADES/{file}"

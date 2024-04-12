@@ -12,7 +12,21 @@ import subprocess
 gdal.UseExceptions()
 
 
-def convert_geotiff_to_cog(file):
+def convert_geotiff_to_cog(file: str):
+    """
+    Converts a GeoTIFF file to a Cloud-Optimized GeoTIFF (COG) format.
+
+    Args:
+        file (str): The path of the GeoTIFF file to be converted.
+
+    Returns:
+        dict: A dictionary containing the result of the conversion. The dictionary has two keys:
+            - 'result': The result of the conversion, which can be either 'OK' or 'FAILED'.
+            - 'file': The path of the converted COG file.
+
+    Raises:
+        Exception: If an error occurs during the conversion process.
+    """
     try:
         # Check that the file is a COG first
         result = int(

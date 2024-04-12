@@ -10,30 +10,6 @@ import aiohttp
 import libpysal
 
 
-# Command-line arguments
-parser = argparse.ArgumentParser(description="Make predictions on a given department and year")
-
-parser.add_argument(
-    "--year",
-    type=int,
-    choices=[2017, 2018, 2019, 2020, 2021, 2022, 2023],
-    metavar="N",
-    default=2020,
-    help="Year of the dataset to make predictions on",
-    required=True,
-)
-parser.add_argument(
-    "--dep",
-    type=str,
-    choices=["MAYOTTE", "GUADELOUPE", "MARTINIQUE", "GUYANE", "REUNION"],
-    default="MAYOTTE",
-    help="Department to make predictions on",
-    required=True,
-)
-
-args = parser.parse_args()
-
-
 def get_file_system() -> S3FileSystem:
     """
     Return the s3 file system.
@@ -201,5 +177,28 @@ async def main(dep: str, year: int):
 
 
 if __name__ == "__main__":
+    # Command-line arguments
+    parser = argparse.ArgumentParser(description="Make predictions on a given department and year")
+
+    parser.add_argument(
+        "--year",
+        type=int,
+        choices=[2017, 2018, 2019, 2020, 2021, 2022, 2023],
+        metavar="N",
+        default=2020,
+        help="Year of the dataset to make predictions on",
+        required=True,
+    )
+    parser.add_argument(
+        "--dep",
+        type=str,
+        choices=["MAYOTTE", "GUADELOUPE", "MARTINIQUE", "GUYANE", "REUNION"],
+        default="MAYOTTE",
+        help="Department to make predictions on",
+        required=True,
+    )
+
+    args = parser.parse_args()
+
     args_dict = vars(args)
     asyncio.run(main(**args_dict))

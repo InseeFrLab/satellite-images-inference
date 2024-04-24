@@ -10,6 +10,7 @@ import aiohttp
 import libpysal
 import requests
 
+
 def get_file_system() -> S3FileSystem:
     """
     Return the s3 file system.
@@ -170,7 +171,7 @@ async def main(dep: str, year: int):
     predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
     # predictions = merge_adjacent_polygons(predictions)
-    predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info["model_name"]}/{model_info["model_version"]}/predictions"
+    predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info['model_name']}/{model_info['model_version']}/predictions"
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 
     with fs.open(f"{predictions_path}.gpkg", "wb") as file:

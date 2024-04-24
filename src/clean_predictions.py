@@ -6,9 +6,10 @@ from geopandas import GeoSeries
 import pandas as pd
 import networkx as nx
 from tqdm import tqdm
+from make_predictions import merge_adjacent_polygons
+
 
 predictions = gpd.read_parquet("../data/predictions.parquet")
-merged_pred = gpd.read_parquet("../data/merged_pred.parquet")
 
 
 def check_line_intersection(poly1, poly2):
@@ -18,8 +19,11 @@ def check_line_intersection(poly1, poly2):
     return False
 
 
-def touches_on_lines(gdf_original):
+def touches_on_lines(gdf_original, merge_adj_poly=False):
     gdf = gdf_original.copy()
+
+    if merge_adj_poly:
+        gdf = merge_adjacent_polygons(gdf)
 
     buffer_distance = 3
     gdf["geometry"] = gdf["geometry"].buffer(-buffer_distance).buffer(buffer_distance)

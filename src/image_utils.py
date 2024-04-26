@@ -1,12 +1,11 @@
 import re
-from typing import List
 from pyproj import Transformer
 from shapely.geometry import box, Point
 
 
 def find_image_of_point(
-    coordinates: List(float),
-    list_filepaths: List(str),
+    coordinates: list,
+    list_filepaths: list,
     crs: int,
     coord_gps: bool = True,
 ) -> str:
@@ -67,8 +66,8 @@ def find_image_of_point(
 
 def find_images_of_bb(
     bbox: box,
-    list_filepaths: List(str),
-) -> List(str):
+    list_filepaths: list,
+) -> list:
     """
     Gives the images in the folder which are in the bounding box.
     This method is based on the filenames of the pleiades images.

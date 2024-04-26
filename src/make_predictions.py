@@ -8,30 +8,7 @@ import pyarrow.dataset as ds
 import asyncio
 import aiohttp
 import libpysal
-
-
-# Command-line arguments
-parser = argparse.ArgumentParser(description="Make predictions on a given department and year")
-
-parser.add_argument(
-    "--year",
-    type=int,
-    choices=[2017, 2018, 2019, 2020, 2021, 2022, 2023],
-    metavar="N",
-    default=2020,
-    help="Year of the dataset to make predictions on",
-    required=True,
-)
-parser.add_argument(
-    "--dep",
-    type=str,
-    choices=["MAYOTTE", "GUADELOUPE", "MARTINIQUE", "GUYANE", "REUNION"],
-    default="MAYOTTE",
-    help="Department to make predictions on",
-    required=True,
-)
-
-args = parser.parse_args()
+import requests
 
 
 def get_file_system() -> S3FileSystem:
@@ -120,6 +97,9 @@ async def main(dep: str, year: int):
         year (int): The year of the satellite images.
     """
 
+    # Get info of the model
+    model_info = requests.get("https://satellite-images-inference.lab.sspcloud.fr/")
+
     # Get file system
     fs = get_file_system()
 
@@ -191,7 +171,7 @@ async def main(dep: str, year: int):
     predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
     # predictions = merge_adjacent_polygons(predictions)
-    predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/predictions"
+    predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info['model_name']}/{model_info['model_version']}/predictions"
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 
     with fs.open(f"{predictions_path}.gpkg", "wb") as file:
@@ -201,5 +181,28 @@ async def main(dep: str, year: int):
 
 
 if __name__ == "__main__":
+    # Command-line arguments
+    parser = argparse.ArgumentParser(description="Make predictions on a given department and year")
+
+    parser.add_argument(
+        "--year",
+        type=int,
+        choices=[2017, 2018, 2019, 2020, 2021, 2022, 2023],
+        metavar="N",
+        default=2020,
+        help="Year of the dataset to make predictions on",
+        required=True,
+    )
+    parser.add_argument(
+        "--dep",
+        type=str,
+        choices=["MAYOTTE", "GUADELOUPE", "MARTINIQUE", "GUYANE", "REUNION"],
+        default="MAYOTTE",
+        help="Department to make predictions on",
+        required=True,
+    )
+
+    args = parser.parse_args()
+
     args_dict = vars(args)
     asyncio.run(main(**args_dict))

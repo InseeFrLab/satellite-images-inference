@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: geoserver-instance-test
+spec:
+  serviceName: geoserver-instance-test
+  replicas: 1
+  selector:
+    matchLabels:
+      app: geoserver-instance-test
+  template:
+    metadata:
+      labels:
+        app: geoserver-instance-test
+    spec:
+      containers:
+        - name: geoserver
+          image: kartoza/geoserver:2.25.0
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: configmap-geoserver
+          env:
+            - name: S3_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: accessKey
+            - name: S3_PASSWORD
+            - name: IIO_S3_AWS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: accessKey
+            - name: IIO_S3_AWS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-s3-creds
+                  key: secretKey
+            - name: GEOSERVER_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-geoserver-creds
+                  key: username
+            - name: GEOSERVER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-geoserver-creds
+                  key: pwd
+
+          volumeMounts:
+            - name: geoserver-data-dir
+              mountPath: /opt/geoserver/data_dir
+            - name: geowebcache-cache-dir
+              mountPath: /opt/geoserver/data_dir/gwc
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "1000m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+      volumes:
+        - name: geoserver-data-dir
+          persistentVolumeClaim:
+            claimName: geoserver-data-dir-pvc-test
+        - name: geowebcache-cache-dir
+          persistentVolumeClaim:
+            claimName: geowebcache-cache-dir-pvc-test

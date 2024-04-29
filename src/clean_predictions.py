@@ -9,7 +9,7 @@ from tqdm import tqdm
 from make_predictions import merge_adjacent_polygons
 
 
-predictions = gpd.read_parquet("../data/predictions.parquet")
+# predictions = gpd.read_parquet("../data/predictions.parquet")
 
 
 def check_line_intersection(poly1, poly2):
@@ -135,3 +135,24 @@ def intersects_on_lines(gdf_original, buffer_distance=2.5):
     gdf["geometry"] = gdf["geometry"].buffer(-buffer_distance)
 
     return gdf
+
+
+
+
+
+#Fonctions de filtrage des polygones avec des seuils
+
+def filtre_compacite (table, seuil_compacite):
+    table['compacite'] = (4 * math.pi * table.area) / (table.length**2)
+    table_filtree = table[table['compacite'] > seuil_compacite]
+    return table_filtree
+
+def filtre_taille (table, seuil_taille):
+    if seuil_taille != 0:
+        table_triee = table.sort_values(by='area_1')
+        decile_seuil = np.percentile(table_triee['area_1'], seuil_taille)
+        polygone_decile = table_triee[table_triee['area_1'] <= decile_seuil].iloc[-1]
+        table_filtree = table[table['area_1'] > polygone_decile['area_1']]
+    else : 
+        table_filtree = table
+    return table_filtree

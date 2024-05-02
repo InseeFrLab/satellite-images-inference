@@ -9,9 +9,6 @@ from tqdm import tqdm
 from make_predictions import merge_adjacent_polygons
 
 
-predictions = gpd.read_parquet("../data/predictions.parquet")
-
-
 def check_line_intersection(poly1, poly2):
     intersection = poly1.intersection(poly2)
     if isinstance(intersection, (LineString, MultiLineString)):

@@ -84,7 +84,7 @@ def touches_on_lines(gdf_original, merge_adj_poly=False, buffer_distance=3):
 def intersects_on_lines(gdf_original, buffer_distance=2.5):
     gdf = gdf_original.copy()
 
-    gdf["geometry"] = gdf["geometry"].buffer(buffer_distance)
+    gdf["geometry"] = gdf["geometry"].buffer(buffer_distance,join_style=2)
     sindex = gdf.sindex
 
     touching_pairs = []
@@ -140,7 +140,7 @@ def intersects_on_lines(gdf_original, buffer_distance=2.5):
 
 
 
-#Fonctions de filtrage des polygones avec des seuils
+# Fonctions de filtrage des polygones avec des seuils
 
 def filtre_compacite (table, seuil_compacite):
     table['compacite'] = (4 * math.pi * table.area) / (table.length**2)

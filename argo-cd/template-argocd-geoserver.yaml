@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: satellite-images-inference-geoserver-test
+  name: satellite-images-inference-geoserver
 spec:
   project: default
   source:

@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: geoserver-instance-test
+  name: geoserver-instance
 spec:
-  serviceName: geoserver-instance-test
+  serviceName: geoserver-instance
   replicas: 1
   selector:
     matchLabels:
-      app: geoserver-instance-test
+      app: geoserver-instance
   template:
     metadata:
       labels:
-        app: geoserver-instance-test
+        app: geoserver-instance
     spec:
       containers:
         - name: geoserver
@@ -21,22 +21,6 @@ spec:
             - configMapRef:
                 name: configmap-geoserver
           env:
-            - name: S3_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: my-s3-creds
-                  key: accessKey
-            - name: S3_PASSWORD
-            - name: IIO_S3_AWS_USER
-              valueFrom:
-                secretKeyRef:
-                  name: my-s3-creds
-                  key: accessKey
-            - name: IIO_S3_AWS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: my-s3-creds
-                  key: secretKey
             - name: GEOSERVER_ADMIN_USER
               valueFrom:
                 secretKeyRef:
@@ -63,7 +47,7 @@ spec:
       volumes:
         - name: geoserver-data-dir
           persistentVolumeClaim:
-            claimName: geoserver-data-dir-pvc-test
+            claimName: geoserver-data-dir-pvc
         - name: geowebcache-cache-dir
           persistentVolumeClaim:
-            claimName: geowebcache-cache-dir-pvc-test
+            claimName: geowebcache-cache-dir-pvc

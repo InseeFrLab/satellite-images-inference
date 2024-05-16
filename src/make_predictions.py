@@ -231,7 +231,7 @@ async def main(dep: str, year: int):
     predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
     predictions = clean_prediction(predictions, buffer_distance=1.5)
-    predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info["model_name"]}/{model_info["model_version"]}/predictions"
+    predictions_path = f"""projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info["model_name"]}/{model_info["model_version"]}/predictions"""
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 
     with fs.open(f"{predictions_path}.gpkg", "wb") as file:

@@ -11,8 +11,9 @@ import aiohttp
 import requests
 import networkx as nx
 from geopandas import GeoSeries
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, LineString, MultiLineString
 from shapely.ops import unary_union
+import libpysal
 
 
 def get_file_system() -> S3FileSystem:
@@ -73,24 +74,43 @@ async def fetch(session, url, image):
         return None
 
 
-def check_poly_intersection(
-    poly1: Union[Polygon, MultiPolygon], poly2: Union[Polygon, MultiPolygon]
+def check_line_intersection(
+    poly1: Union[LineString, MultiLineString], poly2: Union[LineString, MultiLineString]
 ) -> bool:
     """
-    Check if two polygons intersect.
+    Check if two lines intersect.
 
     Args:
-        poly1 (Polygon): The first polygon.
-        poly2 (Polygon): The second polygon.
+        poly1 (Polygon): The first line.
+        poly2 (Polygon): The second line.
 
     Returns:
-        bool: True if the polygons intersect, False otherwise.
+        bool: True if the lines intersect, False otherwise.
     """
     intersection = poly1.intersection(poly2)
-    return isinstance(intersection, (Polygon, MultiPolygon))
+    return isinstance(intersection, (LineString, MultiLineString))
 
 
-def clean_prediction(gdf_original: gpd.GeoDataFrame, buffer_distance=1.5) -> gpd.GeoDataFrame:
+def merge_adjacent_polygons(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Merge adjacent polygons in a GeoDataFrame.
+
+    Args:
+        gdf (gpd.GeoDataFrame): The GeoDataFrame to process.
+
+    Returns:
+        gpd.GeoDataFrame: The GeoDataFrame with adjacent polygons merged.
+    """
+    # TODO: potentially add tiny buffer on polygons ?
+    # Create a spatial weights matrix
+    W = libpysal.weights.Queen.from_dataframe(gdf)
+    # Merge adjacent polygons
+    components = W.component_labels
+    merged_gdf = gdf.dissolve(by=components)
+    return merged_gdf
+
+
+def clean_prediction(gdf_original, buffer_distance=3):
     """
     Clean the predictions by merging adjacent polygons and removing small artifacts.
 
@@ -102,21 +122,21 @@ def clean_prediction(gdf_original: gpd.GeoDataFrame, buffer_distance=1.5) -> gpd
         gpd.GeoDataFrame: The cleaned GeoDataFrame.
 
     """
-    gdf = gdf_original.copy()
+    gdf = merge_adjacent_polygons(gdf_original.copy())
 
     # Buffer the geometry
-    gdf["geometry"] = gdf["geometry"].buffer(buffer_distance)
+    gdf["geometry"] = gdf["geometry"].buffer(-buffer_distance).buffer(buffer_distance)
     sindex = gdf.sindex
 
     # Find touching pairs
     touching_pairs = set()
-    for idx, poly in gdf.iterrows():
-        neighbors_indices = set(sindex.query(poly.geometry, predicate="intersects"))
+    for idx, poly in tqdm(gdf.iterrows(), total=gdf.shape[0], desc="Processing geometries"):
+        neighbors_indices = set(sindex.query(poly.geometry, predicate="touches"))
         touching_pairs.update(
             (min(idx, neighbor_idx), max(idx, neighbor_idx))
             for neighbor_idx in neighbors_indices
             if neighbor_idx != idx
-            and check_poly_intersection(poly.geometry, gdf.iloc[neighbor_idx].geometry)
+            and check_line_intersection(poly.geometry, gdf.iloc[neighbor_idx].geometry)
         )
 
     # Create a connected graph
@@ -124,16 +144,13 @@ def clean_prediction(gdf_original: gpd.GeoDataFrame, buffer_distance=1.5) -> gpd
     connected_components = list(nx.connected_components(G))
 
     gdf_new = gpd.GeoDataFrame({"filename": pd.Series([])}, geometry=GeoSeries())
-    multipolygon_gdf = gpd.GeoDataFrame({"filename": pd.Series([])}, geometry=GeoSeries())
 
     to_remove = set()
     for connected_indexes_poly in connected_components:
         new_poly = unary_union(gdf.loc[list(connected_indexes_poly), "geometry"])
         filenames = gdf.loc[list(connected_indexes_poly), "filename"].tolist()
         new_data = gpd.GeoDataFrame({"filename": filenames, "geometry": new_poly})
-        if isinstance(new_poly, MultiPolygon):
-            multipolygon_gdf = pd.concat([multipolygon_gdf, new_data], ignore_index=True)
-        else:
+        if not isinstance(new_poly, MultiPolygon):
             gdf_new = pd.concat([gdf_new, new_data], ignore_index=True)
             to_remove.update(connected_indexes_poly)
 
@@ -143,7 +160,7 @@ def clean_prediction(gdf_original: gpd.GeoDataFrame, buffer_distance=1.5) -> gpd
     gdf = gdf[~gdf["geometry"].is_empty].reset_index(drop=True)
 
     # Buffer the geometry back to original size
-    gdf["geometry"] = gdf["geometry"].buffer(-buffer_distance)
+    gdf["geometry"] = gdf["geometry"].buffer(-buffer_distance).buffer(buffer_distance)
 
     return gdf
 
@@ -230,7 +247,7 @@ async def main(dep: str, year: int):
     # Filter out images with failed predictions from the result dictionary
     predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
-    predictions = clean_prediction(predictions, buffer_distance=1.5)
+    predictions = clean_prediction(predictions, buffer_distance=3)
     predictions_path = f"""projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info["model_name"]}/{model_info["model_version"]}/predictions"""
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 

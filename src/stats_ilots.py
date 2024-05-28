@@ -3,7 +3,7 @@ In this file we compute building area statistics in ilots based
 on segmentation predictions made by our models.
 """
 import geopandas as gpd
-from make_predictions import get_file_system, merge_adjacent_polygons
+from make_predictions_from_api import get_file_system, merge_adjacent_polygons
 
 
 def compute_ilots_statistics(year: int, dep: str):

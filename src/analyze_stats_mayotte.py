@@ -2,7 +2,7 @@
 Script to analyze building area statistics in Mayotte.
 """
 import pandas as pd
-from make_predictions import get_file_system, merge_adjacent_polygons
+from make_predictions_from_api import get_file_system, merge_adjacent_polygons
 import geopandas as gpd
 from s3fs import S3FileSystem
 import pyarrow.dataset as ds

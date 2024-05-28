@@ -79,7 +79,7 @@ spec:
         command: ["/bin/bash", -c]
         args: ["git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
               cd satellite-images-inference/ &&
-              python src/make_predictions.py --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}}"
+              python src/make_predictions_from_api.py --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}}"
               ]
         volumeMounts:
           - mountPath: /dev/shm

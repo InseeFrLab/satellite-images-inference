@@ -2,7 +2,7 @@ departement="GUYANE"
 annee="2023"
 nom_pod="ggg-geoserver-68f45b8854-v6cbz"
 model="test"
-version="16"
+version="15"
 
 mc cp --recursive s3/projet-slums-detection/data-raw-tif/PLEIADES/${departement}/${annee}/ ${departement}/${annee}
 kubectl exec ${nom_pod} -- mkdir -p /opt/geoserver/data_dir/PLEIADES/${departement}/${annee}

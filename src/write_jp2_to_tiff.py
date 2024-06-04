@@ -62,7 +62,6 @@ list_already_converted = [
 
 list_converted = []
 
-# TODO : PROBLEM -> now we have images only in tif format. Fix this issue
 while len(list_jp2) > len(list_converted + list_already_converted):
     file_missing = [
         f"projet-slums-detection/data-raw/PLEIADES/{file}"

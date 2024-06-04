@@ -32,7 +32,7 @@ def convert_jp2_to_geotiff(file: str):
     driver = gdal.GetDriverByName("GTiff")
 
     # Specify the S3 path where you want to save the file
-    file_output = file.replace("data-raw", "data-raw-tif").replace(".jp2", ".tif")
+    file_output = file.replace(".jp2", ".tif")
     driver.CreateCopy(f"/vsis3/{file_output}", ds)
     # Close the datasets
     ds = None
@@ -44,22 +44,30 @@ os.environ["CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE"] = "YES"
 
 fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
 
-list_filename = [
+list_jp2 = [
     "/".join(file.split("/")[-3:])
     for file in fs.glob("projet-slums-detection/data-raw/PLEIADES/**/**/*.jp2")
 ]
 
-file_retrieved = [
+list_tif = [
     "/".join(file.split("/")[-3:])
-    for file in fs.glob("projet-slums-detection/data-raw-tif/PLEIADES/**/**/*.tif")
+    for file in fs.glob("projet-slums-detection/data-raw/PLEIADES/**/**/*.tif")
 ]
 
+list_already_converted = [
+    f"projet-slums-detection/data-raw/PLEIADES/{file}"
+    for file in list_jp2
+    if file.replace(".jp2", ".tif") in list_tif
+]
+
+list_converted = []
+
 # TODO : PROBLEM -> now we have images only in tif format. Fix this issue
-while len(list_filename) > len(file_retrieved):
+while len(list_jp2) > len(list_converted + list_already_converted):
     file_missing = [
         f"projet-slums-detection/data-raw/PLEIADES/{file}"
-        for file in list_filename
-        if file.replace(".jp2", ".tif") not in file_retrieved
+        for file in list_jp2
+        if file.replace(".jp2", ".tif") not in list_converted + list_already_converted
     ]
     result = pqdm(file_missing, convert_jp2_to_geotiff, n_jobs=50)
     for i in range(len(result)):
@@ -67,4 +75,4 @@ while len(list_filename) > len(file_retrieved):
             continue
         else:
             if result[i]["result"] != "FAILED":
-                file_retrieved.append(result[i]["file"])
+                list_converted.append(result[i]["file"])

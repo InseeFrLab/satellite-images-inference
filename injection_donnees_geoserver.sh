@@ -1,6 +1,6 @@
 departement="GUYANE"
 annee="2023"
-nom_pod="ggg-geoserver-68f45b8854-v6cbz"
+nom_pod="geoserver-instance-0"
 model="test"
 version="15"
 
@@ -17,8 +17,8 @@ kubectl exec ${nom_pod} -- chmod -R a+rw ../opt/geoserver/data_dir
 
 # Ensuite création de la couche image mosaique à partir des images tifs injectées dans le geoserver (àla main)
 # Création de la couche predictions.gpkg
-# Mise à disposition sur Cratt  
+# Mise à disposition sur Cratt
 
 
 # pourfaire un peu de nettoyage dans lesystme de fichier du geoserver
-kubectl exec -it ${nom_pod} -- /bin/bash 
+kubectl exec -it ${nom_pod} -- /bin/bash

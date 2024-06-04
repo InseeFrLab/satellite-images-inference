@@ -6,8 +6,6 @@ from make_predictions_from_api import get_file_system, merge_adjacent_polygons
 import geopandas as gpd
 from s3fs import S3FileSystem
 import pyarrow.dataset as ds
-from astrovision.data import SatelliteImage
-from astrovision.plot import make_mosaic
 import rasterio
 from matplotlib import pyplot as plt
 from osgeo import gdal
@@ -54,10 +52,14 @@ def main():
 
     fs = get_file_system()
     # Load statistics from 2020
-    with fs.open("projet-slums-detection/prediction_statistics/PLEIADES/ilots_MAYOTTE_2020.csv", "rb") as f:
+    with fs.open(
+        "projet-slums-detection/prediction_statistics/PLEIADES/ilots_MAYOTTE_2020.csv", "rb"
+    ) as f:
         statistics_2020 = pd.read_csv(f)
     # Load statistics from 2023
-    with fs.open("projet-slums-detection/prediction_statistics/PLEIADES/ilots_MAYOTTE_2023.csv", "rb") as f:
+    with fs.open(
+        "projet-slums-detection/prediction_statistics/PLEIADES/ilots_MAYOTTE_2023.csv", "rb"
+    ) as f:
         statistics_2023 = pd.read_csv(f)
 
     # Merge statistics
@@ -79,7 +81,9 @@ def main():
         clusters = gpd.read_file(f)
 
     for year in [2020, 2023]:
-        predictions_path = f"projet-slums-detection/data-prediction/PLEIADES/MAYOTTE/{year}/predictions"
+        predictions_path = (
+            f"projet-slums-detection/data-prediction/PLEIADES/MAYOTTE/{year}/predictions"
+        )
         with fs.open(f"{predictions_path}.gpkg", "rb") as f:
             predictions = gpd.read_file(f)
         # Remove artifacts
@@ -89,18 +93,28 @@ def main():
             filename_table = get_filename_to_polygons("MAYOTTE", year, fs)
 
             # Get the selected cluster
-            selected_cluster = clusters.loc[clusters["ident_ilot"] == target_cluster].to_crs("EPSG:4471").geometry.iloc[0]
+            selected_cluster = (
+                clusters.loc[clusters["ident_ilot"] == target_cluster]
+                .to_crs("EPSG:4471")
+                .geometry.iloc[0]
+            )
 
             # Get predictions
-            selected_predictions = clean_predictions.loc[clean_predictions.geometry.intersects(selected_cluster)]
-            selected_predictions["geometry"] = selected_predictions["geometry"].intersection(selected_cluster)
+            selected_predictions = clean_predictions.loc[
+                clean_predictions.geometry.intersects(selected_cluster)
+            ]
+            selected_predictions["geometry"] = selected_predictions["geometry"].intersection(
+                selected_cluster
+            )
 
             # Get the filenames of the images that intersect with the selected cluster
             image_paths = filename_table.loc[
                 filename_table.geometry.intersects(selected_cluster),
                 "filename",
             ].tolist()
-            print(f"{len(image_paths)} images intersect with the selected cluster {target_cluster}.")
+            print(
+                f"{len(image_paths)} images intersect with the selected cluster {target_cluster}."
+            )
 
             # Plot mosaic
             fig, ax = plt.subplots()
@@ -112,17 +126,11 @@ def main():
                     rasterio.plot.show(raster, ax=ax)
             # Plot the selected cluster
             gpd.GeoSeries([selected_cluster]).plot(
-                ax=ax,
-                facecolor='none',
-                edgecolor='red',
-                linewidth=0.1
+                ax=ax, facecolor="none", edgecolor="red", linewidth=0.1
             )
             # Plot buildings
             selected_predictions["geometry"].plot(
-                ax=ax,
-                facecolor='none',
-                edgecolor='cyan',
-                linewidth=0.1
+                ax=ax, facecolor="none", edgecolor="cyan", linewidth=0.1
             )
             fig.savefig(f"preds_{target_cluster}_{year}.png", dpi=500)
 

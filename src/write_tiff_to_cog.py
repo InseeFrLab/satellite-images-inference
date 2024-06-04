@@ -90,19 +90,19 @@ def convert_geotiff_to_cog(file: str):
 
 fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
 
-list_filename = [
+list_tif = [
     "/".join(file.split("/")[-5:])
-    for file in fs.glob("projet-slums-detection/data-raw-tif/PLEIADES/**/**/*.tif")
+    for file in fs.glob("projet-slums-detection/data-raw/PLEIADES/**/**/*.tif")
 ]
 
-file_retrieved = []
+list_converted = []
 
-while len(list_filename) > len(file_retrieved):
-    file_missing = [file for file in list_filename if file not in file_retrieved]
+while len(list_tif) > len(list_converted):
+    file_missing = [file for file in list_tif if file not in list_converted]
     result = pqdm(file_missing, convert_geotiff_to_cog, n_jobs=50)
     for i in range(len(result)):
         if isinstance(result[i], RuntimeError):
             continue
         else:
             if result[i]["result"] == "OK":
-                file_retrieved.append(result[i]["file"])
+                list_converted.append(result[i]["file"])

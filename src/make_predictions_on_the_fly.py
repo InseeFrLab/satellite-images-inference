@@ -1,30 +1,23 @@
 from typing import Union
 import geopandas as gpd
-from tqdm.asyncio import tqdm
+from tqdm import tqdm
 import pandas as pd
 import argparse
 from s3fs import S3FileSystem
 import os
 import pyarrow.dataset as ds
-import asyncio
-import aiohttp
-import requests
+import mlflow
 import networkx as nx
 from geopandas import GeoSeries
 from shapely.geometry import MultiPolygon, LineString, MultiLineString
 from shapely.ops import unary_union
 import libpysal
-
-
-def get_file_system() -> S3FileSystem:
-    """
-    Return the s3 file system.
-    """
-    return S3FileSystem(
-        client_kwargs={"endpoint_url": f"https://{os.environ['AWS_S3_ENDPOINT']}"},
-        key=os.environ["AWS_ACCESS_KEY_ID"],
-        secret=os.environ["AWS_SECRET_ACCESS_KEY"],
-    )
+from app.utils import (
+    get_file_system,
+    get_normalization_metrics,
+    create_geojson_from_mask,
+    predict,
+)
 
 
 def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:
@@ -56,7 +49,6 @@ def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDa
     # Convert the geometry column to a GeoSeries
     data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])
     return gpd.GeoDataFrame(data, geometry="geometry", crs=data.loc[0, "CRS"])
-
 
 
 def check_line_intersection(
@@ -150,7 +142,7 @@ def clean_prediction(gdf_original, buffer_distance=3):
     return gdf
 
 
-def get_model(run_id : str) -> mlflow.pyfunc.PyFuncModel:
+def get_model(run_id: str) -> mlflow.pyfunc.PyFuncModel:
     """
     This function fetches a trained machine learning model from the MLflow
     model registry based on the specified model name and version.
@@ -171,13 +163,10 @@ def get_model(run_id : str) -> mlflow.pyfunc.PyFuncModel:
         model = mlflow.pyfunc.load_model(model_uri=f"runs:/{run_id}/model")
         return model
     except Exception as error:
-        raise Exception(
-            f"Failed to fetch model from run_id : {run_id}"
-        ) from error
+        raise Exception(f"Failed to fetch model from run_id : {run_id}") from error
 
 
 def fetch_model(run_id):
-    
     # Load the ML model
     model = get_model(run_id)
 
@@ -189,16 +178,17 @@ def fetch_model(run_id):
     normalization_mean, normalization_std = get_normalization_metrics(model, n_bands)
 
     return {
-        "model" : model,
-     "n_bands" : n_bands,
-      "tiles_size" : tiles_size,
-       "augment_size" : augment_size,
-       "normalization_mean" : normalization_mean,
-       "normalization_std" : normalization_std
-       }
+        "model": model,
+        "n_bands": n_bands,
+        "tiles_size": tiles_size,
+        "augment_size": augment_size,
+        "normalization_mean": normalization_mean,
+        "normalization_std": normalization_std,
+        "module_name": module_name,
+    }
 
 
-async def main(dep: str, year: int):
+def main(dep: str, year: int):
     """
     Perform satellite image inference and save the predictions.
 
@@ -208,7 +198,7 @@ async def main(dep: str, year: int):
     """
 
     run_id: str = os.getenv("MLFLOW_MODEL_RUN_ID")
-    
+
     # Get info of the model
     model_info = fetch_model(run_id)
     # Get file system
@@ -226,19 +216,6 @@ async def main(dep: str, year: int):
         "filename",
     ].tolist()
 
-    logger.info(f"Predict image endpoint accessed with image: {image}")
-    
-    lsi = predict(
-        image=image,
-        model=model_info["model_info"],
-        tiles_size=model_info["tiles_size"],
-        augment_size=model_info["augment_size"],
-        n_bands=model_info["n_bands"],
-        normalization_mean=model_info["normalization_mean"],
-        normalization_std=model_info["normalization_std"],
-        module_name=model_info["module_name"],
-    ) 
-
     failed_images = []
     predictions = []
 
@@ -253,12 +230,11 @@ async def main(dep: str, year: int):
                 normalization_mean=model_info["normalization_mean"],
                 normalization_std=model_info["normalization_std"],
                 module_name=model_info["module_name"],
-            ) 
+            )
 
             predictions.append(create_geojson_from_mask(lsi))
         except Exception as e:
             print(f"Error with image {im}: {str(e)}")
-            print(f"Prediction returned: {pred}")
             # Get the list of failed images
             failed_images.append(im)
 
@@ -268,28 +244,31 @@ async def main(dep: str, year: int):
 
     # Retry failed images up to the maximum number of retries
     while failed_images and counter < max_retry:
+        for im in failed_images:
+            try:
+                lsi = predict(
+                    image=im,
+                    model=model_info["model_info"],
+                    tiles_size=model_info["tiles_size"],
+                    augment_size=model_info["augment_size"],
+                    n_bands=model_info["n_bands"],
+                    normalization_mean=model_info["normalization_mean"],
+                    normalization_std=model_info["normalization_std"],
+                    module_name=model_info["module_name"],
+                )
 
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            result_retry = {k: v for k, v in zip(failed_images, responses_retry)}
-
-            failed_images = []
-            for im, pred in result_retry.items():
-                try:
-                    # Update the result dictionary with the retry results for successful images
-                    result[im] = gpd.read_file(pred, driver="GeoJSON")
-                    result[im]["filename"] = im
-                except Exception as e:
-                    print(f"Error with image {im}: {str(e)}")
-                    # Get the list of failed images
-                    failed_images.append(im)
-
+                predictions.append(create_geojson_from_mask(lsi))
+                failed_images.remove(im)
+            except Exception as e:
+                print(f"Error with image {im}: {str(e)}")
+                # Get the list of failed images
         counter += 1
 
     # Filter out images with failed predictions from the result dictionary
-    predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
+    predictions = pd.concat([gdf for gdf in predictions if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
     predictions = clean_prediction(predictions, buffer_distance=3)
-    predictions_path = f"""projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info["model_name"]}/{model_info["model_version"]}/predictions"""
+    predictions_path = f"""projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/RUN-ID/{run_id}/predictions"""
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 
     with fs.open(f"{predictions_path}.gpkg", "wb") as file:
@@ -323,4 +302,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args_dict = vars(args)
-    asyncio.run(main(**args_dict))
+    main(**args_dict)

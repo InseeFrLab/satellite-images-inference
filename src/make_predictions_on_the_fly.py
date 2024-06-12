@@ -219,11 +219,11 @@ def main(dep: str, year: int):
     failed_images = []
     predictions = []
 
-    for im in images:
+    for im in tqdm(images):
         try:
             lsi = predict(
                 image=im,
-                model=model_info["model_info"],
+                model=model_info["model"],
                 tiles_size=model_info["tiles_size"],
                 augment_size=model_info["augment_size"],
                 n_bands=model_info["n_bands"],
@@ -244,11 +244,11 @@ def main(dep: str, year: int):
 
     # Retry failed images up to the maximum number of retries
     while failed_images and counter < max_retry:
-        for im in failed_images:
+        for im in tqdm(failed_images):
             try:
                 lsi = predict(
                     image=im,
-                    model=model_info["model_info"],
+                    model=model_info["model"],
                     tiles_size=model_info["tiles_size"],
                     augment_size=model_info["augment_size"],
                     n_bands=model_info["n_bands"],
@@ -278,6 +278,10 @@ def main(dep: str, year: int):
 
 
 if __name__ == "__main__":
+    assert (
+        "MLFLOW_MODEL_RUN_ID" in os.environ
+    ), "Please set the MLFLOW_MODEL_RUN_ID environment variable."
+
     # Command-line arguments
     parser = argparse.ArgumentParser(description="Make predictions on a given department and year")
 

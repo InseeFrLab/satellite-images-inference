@@ -17,6 +17,12 @@ using deep learning models.
 
 ## Usage
 
+Prediction on the fly:
+`python -m src.make_predictions_on_the_fly --dep MAYOTTE --year 2022`
+
+Prediction with API:
+`python -m src.make_predictions_from_api --dep MAYOTTE --year 2022`
+
 ## Contributing
 
 ## License

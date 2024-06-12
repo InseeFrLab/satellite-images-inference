@@ -1,61 +1,13 @@
-from typing import Union
 import geopandas as gpd
 from tqdm.asyncio import tqdm
 import pandas as pd
 import argparse
-from s3fs import S3FileSystem
-import os
-import pyarrow.dataset as ds
 import asyncio
 import aiohttp
 import requests
-import networkx as nx
-from geopandas import GeoSeries
-from shapely.geometry import MultiPolygon, LineString, MultiLineString
-from shapely.ops import unary_union
-import libpysal
-
-
-def get_file_system() -> S3FileSystem:
-    """
-    Return the s3 file system.
-    """
-    return S3FileSystem(
-        client_kwargs={"endpoint_url": f"https://{os.environ['AWS_S3_ENDPOINT']}"},
-        key=os.environ["AWS_ACCESS_KEY_ID"],
-        secret=os.environ["AWS_SECRET_ACCESS_KEY"],
-    )
-
-
-def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:
-    """
-    Retrieves the filename to polygons mapping for a given department and year.
-
-    Args:
-        dep (str): The department code.
-        year (int): The year.
-        fs (S3FileSystem): The S3FileSystem object for accessing the data.
-
-    Returns:
-        gpd.GeoDataFrame: A GeoDataFrame containing the filename to polygons mapping.
-
-    """
-    # Load the filename to polygons mapping
-    data = (
-        ds.dataset(
-            "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
-            partitioning=["dep", "year"],
-            format="parquet",
-            filesystem=fs,
-        )
-        .to_table()
-        .filter((ds.field("dep") == f"dep={dep}") & (ds.field("year") == f"year={year}"))
-        .to_pandas()
-    )
-
-    # Convert the geometry column to a GeoSeries
-    data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])
-    return gpd.GeoDataFrame(data, geometry="geometry", crs=data.loc[0, "CRS"])
+from src.postprocessing.postprocessing import clean_prediction
+from src.retrievals.wrappers import get_filename_to_polygons
+from app.utils import get_file_system
 
 
 async def fetch(session, url, image):
@@ -74,97 +26,6 @@ async def fetch(session, url, image):
         return None
 
 
-def check_line_intersection(
-    poly1: Union[LineString, MultiLineString], poly2: Union[LineString, MultiLineString]
-) -> bool:
-    """
-    Check if two lines intersect.
-
-    Args:
-        poly1 (Polygon): The first line.
-        poly2 (Polygon): The second line.
-
-    Returns:
-        bool: True if the lines intersect, False otherwise.
-    """
-    intersection = poly1.intersection(poly2)
-    return isinstance(intersection, (LineString, MultiLineString))
-
-
-def merge_adjacent_polygons(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """
-    Merge adjacent polygons in a GeoDataFrame.
-
-    Args:
-        gdf (gpd.GeoDataFrame): The GeoDataFrame to process.
-
-    Returns:
-        gpd.GeoDataFrame: The GeoDataFrame with adjacent polygons merged.
-    """
-    # TODO: potentially add tiny buffer on polygons ?
-    # Create a spatial weights matrix
-    W = libpysal.weights.Queen.from_dataframe(gdf)
-    # Merge adjacent polygons
-    components = W.component_labels
-    merged_gdf = gdf.dissolve(by=components)
-    return merged_gdf
-
-
-def clean_prediction(gdf_original, buffer_distance=3):
-    """
-    Clean the predictions by merging adjacent polygons and removing small artifacts.
-
-    Args:
-        gdf_original (gpd.GeoDataFrame): The original GeoDataFrame containing the predictions.
-        buffer_distance (float, optional): The buffer distance to apply to the polygons. Defaults to 1.5.
-
-    Returns:
-        gpd.GeoDataFrame: The cleaned GeoDataFrame.
-
-    """
-    gdf = merge_adjacent_polygons(gdf_original.copy())
-
-    # Buffer the geometry
-    gdf["geometry"] = gdf["geometry"].buffer(-buffer_distance).buffer(buffer_distance)
-    sindex = gdf.sindex
-
-    # Find touching pairs
-    touching_pairs = set()
-    for idx, poly in tqdm(gdf.iterrows(), total=gdf.shape[0], desc="Processing geometries"):
-        neighbors_indices = set(sindex.query(poly.geometry, predicate="touches"))
-        touching_pairs.update(
-            (min(idx, neighbor_idx), max(idx, neighbor_idx))
-            for neighbor_idx in neighbors_indices
-            if neighbor_idx != idx
-            and check_line_intersection(poly.geometry, gdf.iloc[neighbor_idx].geometry)
-        )
-
-    # Create a connected graph
-    G = nx.Graph(touching_pairs)
-    connected_components = list(nx.connected_components(G))
-
-    gdf_new = gpd.GeoDataFrame({"filename": pd.Series([])}, geometry=GeoSeries())
-
-    to_remove = set()
-    for connected_indexes_poly in connected_components:
-        new_poly = unary_union(gdf.loc[list(connected_indexes_poly), "geometry"])
-        filenames = gdf.loc[list(connected_indexes_poly), "filename"].tolist()
-        new_data = gpd.GeoDataFrame({"filename": filenames, "geometry": new_poly})
-        if not isinstance(new_poly, MultiPolygon):
-            gdf_new = pd.concat([gdf_new, new_data], ignore_index=True)
-            to_remove.update(connected_indexes_poly)
-
-    gdf = gdf.drop(index=list(to_remove))
-    gdf["filename"] = gdf["filename"].apply(lambda x: [x])
-    gdf = pd.concat([gdf, gdf_new], ignore_index=True)
-    gdf = gdf[~gdf["geometry"].is_empty].reset_index(drop=True)
-
-    # Buffer the geometry back to original size
-    gdf["geometry"] = gdf["geometry"].buffer(-buffer_distance).buffer(buffer_distance)
-
-    return gdf
-
-
 async def main(dep: str, year: int):
     """
     Perform satellite image inference and save the predictions.
@@ -175,7 +36,7 @@ async def main(dep: str, year: int):
     """
 
     # Get info of the model
-    model_info = requests.get("https://satellite-images-inference.lab.sspcloud.fr/")
+    model_info = requests.get("https://satellite-images-inference.lab.sspcloud.fr/").json()
 
     # Get file system
     fs = get_file_system()
@@ -191,6 +52,11 @@ async def main(dep: str, year: int):
         filename_table.geometry.intersects(roi.geometry.iloc[0]),
         "filename",
     ].tolist()
+
+    images = images[10:12] + [
+        "projet-slums-detection/data-raw/PLEIADES/MAYOTTE_CLEAN/2022/ORT_976_2022_0513_8568_U38S_8Bits.tif",
+        "projet-slums-detection/data-raw/PLEIADES/MAYOTTE_CLEAN/2022/ORT_976_2022_0513_8593_U38S_8Bits.tif",
+    ]
 
     urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(images)
     timeout = aiohttp.ClientTimeout(total=60 * 60 * 10)  # 10 heures timeout

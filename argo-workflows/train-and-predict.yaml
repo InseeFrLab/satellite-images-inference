@@ -1,0 +1,244 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: train-and-predict-
+spec:
+  serviceAccountName: workflow
+  volumes:
+    - name: dshm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 2Gi
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: training-conf-list
+        value: '[
+            { "TASK": "segmentation",
+              "SOURCE": "PLEIADES",
+              "DATASETS": ["MAYOTTE_2022", "MARTINIQUE_2022"],
+              "TILES_SIZE": 250,
+              "AUGMENT_SIZE": 512,
+              "TYPE_LABELER": "BDTOPO",
+              "USE_S3": 0,
+              "EPOCHS": 150,
+              "BATCH_SIZE": 16,
+              "TEST_BATCH_SIZE": 16,
+              "LR": 0.00005,
+              "BUILDING_CLASS_WEIGHT": 2,
+              "LOSS_NAME": "cross_entropy_weighted",
+              "MODULE_NAME": "segformer-b5",
+              "SCHEDULER_NAME": "one_cycle",
+              "PATIENCE": 200,
+              "LABEL_SMOOTHING": 0.0,
+              "LOGITS": 1,
+              "FREEZE_ENCODER": 0,
+              "CUDA": 1
+            }
+            ]'
+      - name: predict-conf-list
+        value: '[
+            {"DEP": "MAYOTTE", "YEAR": "2022"}
+            ]'
+
+  templates:
+    # Entrypoint DAG template
+    - name: main
+      dag:
+        tasks:
+          # Task 1: Train the model
+          - name: run-training-with-params
+            template: run-training-wt
+            arguments:
+              parameters:
+                - name: SOURCE
+                  value: "{{item.SOURCE}}"
+                - name: DATASETS
+                  value: "{{item.DATASETS}}"
+                - name: TYPE_LABELER
+                  value: "{{item.TYPE_LABELER}}"
+                - name: TASK
+                  value: "{{item.TASK}}"
+                - name: TILES_SIZE
+                  value: "{{item.TILES_SIZE}}"
+                - name: AUGMENT_SIZE
+                  value: "{{item.AUGMENT_SIZE}}"
+                - name: USE_S3
+                  value: "{{item.USE_S3}}"
+                - name: EPOCHS
+                  value: "{{item.EPOCHS}}"
+                - name: BATCH_SIZE
+                  value: "{{item.BATCH_SIZE}}"
+                - name: TEST_BATCH_SIZE
+                  value: "{{item.TEST_BATCH_SIZE}}"
+                - name: LR
+                  value: "{{item.LR}}"
+                - name: BUILDING_CLASS_WEIGHT
+                  value: "{{item.BUILDING_CLASS_WEIGHT}}"
+                - name: LOSS_NAME
+                  value: "{{item.LOSS_NAME}}"
+                - name: MODULE_NAME
+                  value: "{{item.MODULE_NAME}}"
+                - name: SCHEDULER_NAME
+                  value: "{{item.SCHEDULER_NAME}}"
+                - name: PATIENCE
+                  value: "{{item.PATIENCE}}"
+                - name: LABEL_SMOOTHING
+                  value: "{{item.LABEL_SMOOTHING}}"
+                - name: LOGITS
+                  value: "{{item.LOGITS}}"
+                - name: FREEZE_ENCODER
+                  value: "{{item.FREEZE_ENCODER}}"
+                - name: CUDA
+                  value: "{{item.CUDA}}"
+            # Pass the inputs to the task using "withParam"
+            withParam: "{{workflow.parameters.training-conf-list}}"
+
+          # Task 2: Make prediction of the trained model
+          - name: run-predictions
+            dependencies: [ run-training-with-params ]
+            template: run-predictions-wt
+            arguments:
+              parameters:
+                - name: run-id
+                  value: "{{tasks.run-training-with-params.outputs.parameters.run-id}}"
+                - name: DEP
+                  value: "{{item.DEP}}"
+                - name: YEAR
+                  value: "{{item.YEAR}}"
+            # Pass the inputs to the task using "withParam"
+            withParam: "{{workflow.parameters.predict-conf-list}}"
+
+    # Now task container templates are defined
+    # Worker template for task 1 : train model with params
+    - name: run-training-wt
+      inputs:
+        parameters:
+          - name: SOURCE
+          - name: DATASETS
+          - name: TYPE_LABELER
+          - name: TASK
+          - name: TILES_SIZE
+          - name: AUGMENT_SIZE
+          - name: USE_S3
+          - name: EPOCHS
+          - name: BATCH_SIZE
+          - name: TEST_BATCH_SIZE
+          - name: LR
+          - name: BUILDING_CLASS_WEIGHT
+          - name: LOSS_NAME
+          - name: MODULE_NAME
+          - name: SCHEDULER_NAME
+          - name: PATIENCE
+          - name: LABEL_SMOOTHING
+          - name: LOGITS
+          - name: FREEZE_ENCODER
+          - name: CUDA
+      # nodeSelector:
+      #   nvidia.com/gpu.product: "NVIDIA-H100-PCIe"
+      outputs:
+        parameters:
+          - name: run-id
+            valueFrom:
+              path: /home/onyxia/run-id.txt
+      container:
+        image: inseefrlab/satellite-images-train:v0.0.6
+        imagePullPolicy: Always
+        command: ["/bin/bash", -c]
+        args: ["git clone https://github.com/InseeFrLab/satellite-images-train.git &&
+              cd satellite-images-train/ &&
+              git checkout test-totoo &&
+              export MC_HOST_s3=https://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY@$AWS_S3_ENDPOINT &&
+              mlflow run ~/work/satellite-images-train/ \
+                  --env-manager=local \
+                  --entry-point $ENTRY_POINT \
+                  -P remote_server_uri=$MLFLOW_TRACKING_URI \
+                  -P experiment_name=$MLFLOW_EXPERIMENT_NAME \
+                  -P source={{inputs.parameters.SOURCE}} \
+                  -P datasets='{{inputs.parameters.DATASETS}}' \
+                  -P type_labeler={{inputs.parameters.TYPE_LABELER}} \
+                  -P task={{inputs.parameters.TASK}} \
+                  -P tiles_size={{inputs.parameters.TILES_SIZE}} \
+                  -P augment_size={{inputs.parameters.AUGMENT_SIZE}} \
+                  -P epochs={{inputs.parameters.EPOCHS}} \
+                  -P batch_size={{inputs.parameters.BATCH_SIZE}} \
+                  -P test_batch_size={{inputs.parameters.TEST_BATCH_SIZE}} \
+                  -P lr={{inputs.parameters.LR}} \
+                  -P from_s3={{inputs.parameters.USE_S3}} \
+                  -P loss_name={{inputs.parameters.LOSS_NAME}} \
+                  -P module_name={{inputs.parameters.MODULE_NAME}} \
+                  -P label_smoothing={{inputs.parameters.LABEL_SMOOTHING}} \
+                  -P scheduler_name={{inputs.parameters.SCHEDULER_NAME}} \
+                  -P patience={{inputs.parameters.PATIENCE}} \
+                  -P logits={{inputs.parameters.LOGITS}} \
+                  -P freeze_encoder={{inputs.parameters.FREEZE_ENCODER}} \
+                  -P building_class_weight={{inputs.parameters.BUILDING_CLASS_WEIGHT}} \
+                  -P cuda={{inputs.parameters.CUDA}}"
+              ]
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+        env:
+          # env var for s3 connexion
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: accessKey
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: secretKey
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+          - name: AWS_S3_ENDPOINT
+            value: minio.lab.sspcloud.fr
+          - name: MLFLOW_S3_ENDPOINT_URL
+            value: https://minio.lab.sspcloud.fr
+          - name: MLFLOW_TRACKING_URI
+            value: https://projet-slums-detection-128833.user.lab.sspcloud.fr
+          - name: MLFLOW_EXPERIMENT_NAME
+            value: segmentation
+          - name: ENTRY_POINT
+            value: main
+
+    # Worker template for task 2 : make predictions
+    - name: run-predictions-wt
+      inputs:
+        parameters:
+          - name: run-id
+          - name: DEP
+          - name: YEAR
+      container:
+        image: inseefrlab/satellite-images-dev:v0.0.3
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 3
+        command: ["/bin/bash", -c]
+        args: ["git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
+              cd satellite-images-inference/ &&
+              python -m src.make_predictions_on_the_fly --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}}"
+              ]
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+        env:
+          # env var for s3 connexion
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: accessKey
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: secretKey
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+          - name: AWS_S3_ENDPOINT
+            value: minio.lab.sspcloud.fr
+          - name: MLFLOW_MODEL_RUN_ID
+            value: "{{inputs.parameters.run-id}}"

@@ -53,11 +53,6 @@ async def main(dep: str, year: int):
         "filename",
     ].tolist()
 
-    images = images[10:12] + [
-        "projet-slums-detection/data-raw/PLEIADES/MAYOTTE_CLEAN/2022/ORT_976_2022_0513_8568_U38S_8Bits.tif",
-        "projet-slums-detection/data-raw/PLEIADES/MAYOTTE_CLEAN/2022/ORT_976_2022_0513_8593_U38S_8Bits.tif",
-    ]
-
     urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(images)
     timeout = aiohttp.ClientTimeout(total=60 * 60 * 10)  # 10 heures timeout
 

@@ -8,7 +8,7 @@ spec:
     - name: dshm
       emptyDir:
         medium: Memory
-        sizeLimit: 2Gi
+        sizeLimit: 16Gi
   entrypoint: main
   arguments:
     parameters:
@@ -16,23 +16,23 @@ spec:
         value: '[
             { "TASK": "segmentation",
               "SOURCE": "PLEIADES",
-              "DATASETS": ["MAYOTTE_2022", "MARTINIQUE_2022"],
+              "DATASETS": ["MAYOTTE_2022"],
               "TILES_SIZE": 250,
-              "AUGMENT_SIZE": 512,
+              "AUGMENT_SIZE": 250,
               "TYPE_LABELER": "BDTOPO",
               "USE_S3": 0,
-              "EPOCHS": 150,
-              "BATCH_SIZE": 16,
-              "TEST_BATCH_SIZE": 16,
+              "EPOCHS": 2,
+              "BATCH_SIZE": 5,
+              "TEST_BATCH_SIZE": 5,
               "LR": 0.00005,
-              "BUILDING_CLASS_WEIGHT": 2,
-              "LOSS_NAME": "cross_entropy_weighted",
-              "MODULE_NAME": "segformer-b5",
+              "BUILDING_CLASS_WEIGHT": 40,
+              "LOSS_NAME": "bce_logits_weighted",
+              "MODULE_NAME": "single_class_deeplabv3",
               "SCHEDULER_NAME": "one_cycle",
-              "PATIENCE": 200,
+              "PATIENCE": 10,
               "LABEL_SMOOTHING": 0.0,
               "LOGITS": 1,
-              "FREEZE_ENCODER": 0,
+              "FREEZE_ENCODER": 1,
               "CUDA": 1
             }
             ]'
@@ -144,12 +144,14 @@ spec:
       container:
         image: inseefrlab/satellite-images-train:v0.0.6
         imagePullPolicy: Always
+        resources:
+          limits:
+            nvidia.com/gpu: 1
         command: ["/bin/bash", -c]
         args:
           - |
             git clone https://github.com/InseeFrLab/satellite-images-train.git &&
             cd satellite-images-train/ &&
-            git checkout test-totoo &&
             export MC_HOST_s3=https://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY@$AWS_S3_ENDPOINT &&
             mlflow run ~/work/satellite-images-train/ \
                 --env-manager=local \

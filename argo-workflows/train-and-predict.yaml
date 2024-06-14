@@ -145,36 +145,38 @@ spec:
         image: inseefrlab/satellite-images-train:v0.0.6
         imagePullPolicy: Always
         command: ["/bin/bash", -c]
-        args: ["git clone https://github.com/InseeFrLab/satellite-images-train.git &&
-              cd satellite-images-train/ &&
-              git checkout test-totoo &&
-              export MC_HOST_s3=https://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY@$AWS_S3_ENDPOINT &&
-              mlflow run ~/work/satellite-images-train/ \
-                  --env-manager=local \
-                  --entry-point $ENTRY_POINT \
-                  -P remote_server_uri=$MLFLOW_TRACKING_URI \
-                  -P experiment_name=$MLFLOW_EXPERIMENT_NAME \
-                  -P source={{inputs.parameters.SOURCE}} \
-                  -P datasets='{{inputs.parameters.DATASETS}}' \
-                  -P type_labeler={{inputs.parameters.TYPE_LABELER}} \
-                  -P task={{inputs.parameters.TASK}} \
-                  -P tiles_size={{inputs.parameters.TILES_SIZE}} \
-                  -P augment_size={{inputs.parameters.AUGMENT_SIZE}} \
-                  -P epochs={{inputs.parameters.EPOCHS}} \
-                  -P batch_size={{inputs.parameters.BATCH_SIZE}} \
-                  -P test_batch_size={{inputs.parameters.TEST_BATCH_SIZE}} \
-                  -P lr={{inputs.parameters.LR}} \
-                  -P from_s3={{inputs.parameters.USE_S3}} \
-                  -P loss_name={{inputs.parameters.LOSS_NAME}} \
-                  -P module_name={{inputs.parameters.MODULE_NAME}} \
-                  -P label_smoothing={{inputs.parameters.LABEL_SMOOTHING}} \
-                  -P scheduler_name={{inputs.parameters.SCHEDULER_NAME}} \
-                  -P patience={{inputs.parameters.PATIENCE}} \
-                  -P logits={{inputs.parameters.LOGITS}} \
-                  -P freeze_encoder={{inputs.parameters.FREEZE_ENCODER}} \
-                  -P building_class_weight={{inputs.parameters.BUILDING_CLASS_WEIGHT}} \
-                  -P cuda={{inputs.parameters.CUDA}}"
-              ]
+        args:
+          - |
+            git clone https://github.com/InseeFrLab/satellite-images-train.git &&
+            cd satellite-images-train/ &&
+            git checkout test-totoo &&
+            export MC_HOST_s3=https://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY@$AWS_S3_ENDPOINT &&
+            mlflow run ~/work/satellite-images-train/ \
+                --env-manager=local \
+                --entry-point $ENTRY_POINT \
+                -P remote_server_uri=$MLFLOW_TRACKING_URI \
+                -P experiment_name=$MLFLOW_EXPERIMENT_NAME \
+                -P source={{inputs.parameters.SOURCE}} \
+                -P datasets='{{inputs.parameters.DATASETS}}' \
+                -P type_labeler={{inputs.parameters.TYPE_LABELER}} \
+                -P task={{inputs.parameters.TASK}} \
+                -P tiles_size={{inputs.parameters.TILES_SIZE}} \
+                -P augment_size={{inputs.parameters.AUGMENT_SIZE}} \
+                -P epochs={{inputs.parameters.EPOCHS}} \
+                -P batch_size={{inputs.parameters.BATCH_SIZE}} \
+                -P test_batch_size={{inputs.parameters.TEST_BATCH_SIZE}} \
+                -P lr={{inputs.parameters.LR}} \
+                -P from_s3={{inputs.parameters.USE_S3}} \
+                -P loss_name={{inputs.parameters.LOSS_NAME}} \
+                -P module_name={{inputs.parameters.MODULE_NAME}} \
+                -P label_smoothing={{inputs.parameters.LABEL_SMOOTHING}} \
+                -P scheduler_name={{inputs.parameters.SCHEDULER_NAME}} \
+                -P patience={{inputs.parameters.PATIENCE}} \
+                -P logits={{inputs.parameters.LOGITS}} \
+                -P freeze_encoder={{inputs.parameters.FREEZE_ENCODER}} \
+                -P building_class_weight={{inputs.parameters.BUILDING_CLASS_WEIGHT}} \
+                -P cuda={{inputs.parameters.CUDA}}
+
         volumeMounts:
           - mountPath: /dev/shm
             name: dshm
@@ -217,10 +219,13 @@ spec:
           requests:
             cpu: 3
         command: ["/bin/bash", -c]
-        args: ["git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
-              cd satellite-images-inference/ &&
-              python -m src.make_predictions_on_the_fly --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}}"
-              ]
+        args:
+          - |
+            export MLFLOW_MODEL_RUN_ID=$(echo "$MLFLOW_MODEL_RUN_ID" | tr -d '[]"');
+            git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
+            cd satellite-images-inference/ &&
+            python -m src.make_predictions_on_the_fly --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}}
+
         volumeMounts:
           - mountPath: /dev/shm
             name: dshm

@@ -7,6 +7,8 @@ import pandas as pd
 from shapely import Polygon
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pyarrow.dataset as ds
+
 
 gdal.UseExceptions()
 
@@ -65,11 +67,24 @@ list_filename = fs.glob("projet-slums-detection/data-raw/PLEIADES/**/**/*.jp2") 
     "projet-slums-detection/data-raw/PLEIADES/**/**/*.tif"
 )
 
+current_filename_to_poly = (
+    ds.dataset(
+        "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
+        partitioning=["dep", "year"],
+        format="parquet",
+        filesystem=fs,
+    )
+    .to_table()
+    .to_pandas()
+)
+
+list_missing_files = [x for x in list_filename if x not in current_filename_to_poly.filename.to_list()]
+
 file_retrieved = []
 list_gpd = []
 
-while len(list_filename) > len(file_retrieved):
-    file_missing = [file for file in list_filename if file not in file_retrieved]
+while len(list_missing_files) > len(file_retrieved):
+    file_missing = [file for file in list_missing_files if file not in file_retrieved]
     result = pqdm(file_missing, create_polygon, n_jobs=50)
     for i in range(len(result)):
         tmp = result[i]

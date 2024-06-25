@@ -15,3 +15,4 @@ transformers==4.41.2
 torchvision==0.17.1
 geopandas==0.14.4
 libpysal==4.10
+pqdm==0.2.0

@@ -3,11 +3,12 @@ kind: Workflow
 metadata:
   generateName: parallel-predict-
 spec:
+  serviceAccountName: workflow
   volumes:
     - name: dshm
       emptyDir:
         medium: Memory
-        sizeLimit: 64Gi
+        sizeLimit: 16Gi
   entrypoint: main
   arguments:
     parameters:
@@ -31,7 +32,10 @@ spec:
             {"DEP": "REUNION", "YEAR": "2022"},
 
             {"DEP": "GUYANE", "YEAR": "2023"},
-            {"DEP": "GUYANE", "YEAR": "2022"}
+            {"DEP": "GUYANE", "YEAR": "2022"},
+            
+            {"DEP": "SAINT-MARTIN", "YEAR": "2024"}
+
             ]'
 
   templates:
@@ -71,7 +75,7 @@ spec:
           - name: DEP
           - name: YEAR
       container:
-        image: inseefrlab/satellite-images-dev:v0.0.3
+        image: inseefrlab/satellite-images-dev:v0.0.4
         imagePullPolicy: Always
         resources:
           requests:

@@ -92,6 +92,9 @@ def clean_prediction(gdf_original: gpd.GeoDataFrame, buffer_distance: int = 3) -
     gdf = gdf.drop(index=list(to_remove))
     if "filename" in gdf.columns:
         gdf["filename"] = gdf["filename"].apply(lambda x: [x])
+    if "filename" in gdf.columns:
+        gdf_new["filename"] = gdf_new["filename"].apply(lambda x: [x])
+        
     gdf = pd.concat([gdf, gdf_new], ignore_index=True)
     gdf = gdf[~gdf["geometry"].is_empty].reset_index(drop=True)
 

@@ -113,7 +113,7 @@ async def main(dep: str, year: int):
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
 
     with fs.open(f"{predictions_path}.gpkg", "wb") as file:
-        predictions.to_file(file, driver="GPKG")
+        predictions.loc[:, predictions.columns != "filename"].to_file(file, driver="GPKG")
 
     print(f"{failed_images}")
 

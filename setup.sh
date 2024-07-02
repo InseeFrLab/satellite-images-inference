@@ -1,5 +1,5 @@
 #!/bin/bash
 
 pre-commit install
-export MLFLOW_MODEL_NAME=test
-export MLFLOW_MODEL_VERSION="15"
+export MLFLOW_MODEL_NAME=Segmentation
+export MLFLOW_MODEL_VERSION="1"

@@ -201,7 +201,7 @@ spec:
           - name: MLFLOW_S3_ENDPOINT_URL
             value: https://minio.lab.sspcloud.fr
           - name: MLFLOW_TRACKING_URI
-            value: https://projet-slums-detection-128833.user.lab.sspcloud.fr
+            value: https://projet-slums-detection-mlflow.user.lab.sspcloud.fr
           - name: MLFLOW_EXPERIMENT_NAME
             value: segmentation
           - name: ENTRY_POINT

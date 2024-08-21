@@ -1,10 +1,10 @@
-departement="GUYANE"
-annee="2023"
-nom_pod="geoserver-instance-0"
+departement="SAINT-MARTIN"
+annee="2024"
+nom_pod="geoserver-pod-0"
 model="test"
 version="15"
 
-mc cp --recursive s3/projet-slums-detection/data-raw-tif/PLEIADES/${departement}/${annee}/ ${departement}/${annee}
+mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/${departement}/${annee}/ ${departement}/${annee}
 kubectl exec ${nom_pod} -- mkdir -p /opt/geoserver/data_dir/PLEIADES/${departement}/${annee}
 kubectl cp  ${departement}/${annee}/ projet-slums-detection/${nom_pod}:/opt/geoserver/data_dir/PLEIADES/${departement}/${annee}/
 kubectl exec ${nom_pod} -- chmod -R a+rw ../opt/geoserver/data_dir

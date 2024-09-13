@@ -4,21 +4,28 @@ nom_pod="geoserver-pod-0"
 model="test"
 version="15"
 
-mc cp --recursive s3/projet-slums-detection/data-raw/PLEIADES/${departement}/${annee}/ ${departement}/${annee}
-kubectl exec ${nom_pod} -- mkdir -p /opt/geoserver/data_dir/PLEIADES/${departement}/${annee}
-kubectl cp  ${departement}/${annee}/ projet-slums-detection/${nom_pod}:/opt/geoserver/data_dir/PLEIADES/${departement}/${annee}/
-kubectl exec ${nom_pod} -- chmod -R a+rw ../opt/geoserver/data_dir
+# Install MinIO client (Ne faire que si le pod vient de redémarrer, une fois installé ça sert à rien de le réinstaller à chaque fois)
+kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
+    wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc && \
+    chmod +x /usr/local/bin/mc && \
+    echo 'MinIO client installed.'"
 
-mc cp s3/projet-slums-detection/data-prediction/PLEIADES/${departement}/${annee}/${model}/${version}/predictions.gpkg predictions.gpkg
-kubectl exec ${nom_pod} -- mkdir -p /opt/geoserver/data_dir/PREDICTIONS/PLEIADES/${departement}/${annee}/${model}/${version}
-kubectl cp  predictions.gpkg projet-slums-detection/${nom_pod}:/opt/geoserver/data_dir/PREDICTIONS/PLEIADES/${departement}/${annee}/${model}/${version}/predictions.gpkg
-kubectl exec ${nom_pod} -- chmod -R a+rw ../opt/geoserver/data_dir
+# Copy raw data from S3 to the GeoServer directly
+kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
+    mc cp -r s3/projet-slums-detection/data-raw/PLEIADES/${departement}/${annee}/  \
+        /opt/geoserver/data_dir/PLEIADES/${departement}/${annee} && \
+    echo 'Raw data successfully copied.'"
 
+# Copy predictions from S3 to the GeoServer directly
+kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
+    export MC_HOST_s3=https://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@${AWS_S3_ENDPOINT} && \
+    mc cp s3/projet-slums-detection/data-prediction/PLEIADES/${departement}/${annee}/${model}/${version}/predictions.gpkg \
+        /opt/geoserver/data_dir/PREDICTIONS/PLEIADES/${departement}/${annee}/${model}/${version}/predictions.gpkg && \
+    echo 'Predictions file successfully copied.'"
 
 # Ensuite création de la couche image mosaique à partir des images tifs injectées dans le geoserver (àla main)
 # Création de la couche predictions.gpkg
 # Mise à disposition sur Cratt
 
-
 # pourfaire un peu de nettoyage dans lesystme de fichier du geoserver
-kubectl exec -it ${nom_pod} -- /bin/bash
+kubectl exec -it ${nom_pod} -c geoserver -- /bin/bash

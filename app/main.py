@@ -2,26 +2,27 @@
 Main file for the API.
 """
 
-import os
 import gc
-import mlflow
-from osgeo import gdal
-import geopandas as gpd
-from shapely.geometry import box
-
-
+import os
 from contextlib import asynccontextmanager
 from typing import Dict
+
+import geopandas as gpd
+import mlflow
+import pyarrow.parquet as pq
 from fastapi import FastAPI, Query, Response
+from osgeo import gdal
+from shapely.geometry import box
+
 from app.logger_config import configure_logger
 from app.utils import (
+    create_geojson_from_mask,
     get_file_system,
+    get_filename_to_polygons,
     get_model,
     get_normalization_metrics,
-    create_geojson_from_mask,
     predict,
-    predict_roi,
-    get_filename_to_polygons,
+    subset_predictions,
 )
 
 
@@ -141,8 +142,16 @@ def predict_cluster(
 
     fs = get_file_system()
 
-    with fs.open("projet-slums-detection/ilots/ilots.gpkg", "rb") as f:
-        clusters = gpd.read_file(f)
+    # Get cluster file
+    clusters = (
+        pq.ParquetDataset(
+            "projet-slums-detection/ilots/clusters", filesystem=fs, filters=[("dep", "=", dep)]
+        )
+        .read()
+        .to_pandas()
+    )
+    clusters["geometry"] = gpd.GeoSeries.from_wkt(clusters["geometry"])
+    clusters = gpd.GeoDataFrame(clusters, geometry="geometry", crs="EPSG:4326")
 
     # Get the filename to polygons mapping
     filename_table = get_filename_to_polygons(dep, year, fs)
@@ -156,10 +165,9 @@ def predict_cluster(
         "filename",
     ].tolist()
 
-    # Predict the cluster
-    preds_cluster = predict_roi(
+    # Predict
+    predictions = predict(
         images,
-        selected_cluster,
         model,
         tiles_size,
         augment_size,
@@ -168,6 +176,8 @@ def predict_cluster(
         normalization_std,
         module_name,
     )
+
+    preds_cluster = subset_predictions(predictions, selected_cluster)
 
     return Response(content=preds_cluster.loc[:, "geometry"].to_json(), media_type="text/plain")
 
@@ -215,9 +225,8 @@ def predict_bbox(
     ].tolist()
 
     # Predict the bbox
-    preds_bbox = predict_roi(
+    predictions = predict(
         images,
-        bbox_geo,
         model,
         tiles_size,
         augment_size,
@@ -226,5 +235,7 @@ def predict_bbox(
         normalization_std,
         module_name,
     )
+
+    preds_bbox = subset_predictions(predictions, bbox_geo)
 
     return Response(content=preds_bbox.loc[:, "geometry"].to_json(), media_type="text/plain")

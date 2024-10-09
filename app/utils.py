@@ -21,7 +21,7 @@ from s3fs import S3FileSystem
 from astrovision.plot import make_mosaic
 from shapely.ops import unary_union
 import pandas as pd
-import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 from tqdm import tqdm
 from app.logger_config import configure_logger
 
@@ -318,7 +318,7 @@ def make_prediction(
 
 
 def predict(
-    image: str,
+    images: str | list[str],
     model: mlflow.pyfunc.PyFuncModel,
     tiles_size: int,
     augment_size: int,
@@ -326,12 +326,12 @@ def predict(
     normalization_mean: List[float],
     normalization_std: List[float],
     module_name: str,
-) -> Dict:
+):
     """
-    Predicts mask for a given satellite image.
+    Predicts mask for a given satellite image or a given list of given satellite image.
 
     Args:
-        image (str): Path to the satellite image.
+        image (str or list): Path to the satellite image(s).
         model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
         tiles_size (int): Size of the satellite image.
         augment_size (int): Size of the augmentation.
@@ -341,97 +341,92 @@ def predict(
         module_name (str): Name of the module used for training.
 
     Returns:
-        SegmentationLabeledSatelliteImage: The labeled satellite image with the predicted mask.
+        SegmentationLabeledSatelliteImage or list[SegmentationLabeledSatelliteImage]: The labeled satellite image with the predicted mask.
 
     Raises:
         ValueError: If the dimension of the image is not divisible by the tile size used during training or if the dimension is smaller than the tile size.
 
     """
-    # Retrieve satellite image
-    si = get_satellite_image(image, n_bands)
 
-    # Normalize image if it is not in uint8
-    if si.array.dtype is not np.dtype("uint8"):
-        si.array = cv2.normalize(si.array, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    def predict_single_image(image):
+        # Retrieve satellite image
+        si = get_satellite_image(image, n_bands)
 
-    if si.array.shape[1] == tiles_size:
-        lsi = make_prediction(
-            model=model,
-            image=si,
-            tiles_size=tiles_size,
-            augment_size=augment_size,
-            n_bands=n_bands,
-            normalization_mean=normalization_mean,
-            normalization_std=normalization_std,
-            module_name=module_name,
-        )
+        # Normalize image if it is not in uint8
+        if si.array.dtype is not np.dtype("uint8"):
+            si.array = cv2.normalize(si.array, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
-    elif si.array.shape[1] > tiles_size:
-        if si.array.shape[1] % tiles_size != 0:
-            raise ValueError(
-                "The dimension of the image must be divisible by the tiles size used during training."
+        if si.array.shape[1] == tiles_size:
+            lsi = make_prediction(
+                model=model,
+                image=si,
+                tiles_size=tiles_size,
+                augment_size=augment_size,
+                n_bands=n_bands,
+                normalization_mean=normalization_mean,
+                normalization_std=normalization_std,
+                module_name=module_name,
             )
-        else:
-            si_splitted = si.split(tiles_size)
 
-            lsi_splitted = [
-                make_prediction(
-                    s_si,
-                    model,
-                    tiles_size,
-                    augment_size,
-                    n_bands,
-                    normalization_mean,
-                    normalization_std,
-                    module_name,
+        elif si.array.shape[1] > tiles_size:
+            if si.array.shape[1] % tiles_size != 0:
+                raise ValueError(
+                    "The dimension of the image must be divisible by the tiles size used during training."
                 )
-                for s_si in tqdm(si_splitted)
-            ]
+            else:
+                si_splitted = si.split(tiles_size)
 
-            lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
+                lsi_splitted = [
+                    make_prediction(
+                        s_si,
+                        model,
+                        tiles_size,
+                        augment_size,
+                        n_bands,
+                        normalization_mean,
+                        normalization_std,
+                        module_name,
+                    )
+                    for s_si in tqdm(si_splitted)
+                ]
+
+                lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
+        else:
+            raise ValueError(
+                "The dimension of the image should be equal to or greater than the tile size used during training."
+            )
+        return lsi
+
+    # Check if input is a str
+    if isinstance(images, str):
+        return predict_single_image(images)
     else:
-        raise ValueError(
-            "The dimension of the image should be equal to or greater than the tile size used during training."
-        )
-    return lsi
+        return [
+            predict(
+                image,
+                model,
+                tiles_size,
+                augment_size,
+                n_bands,
+                normalization_mean,
+                normalization_std,
+                module_name,
+            )
+            for image in tqdm(images)
+        ]
 
 
-def predict_roi(
-    images: List[str],
+def subset_predictions(
+    predictions: list[SegmentationLabeledSatelliteImage],
     roi: gpd.GeoDataFrame,
-    model,
-    tiles_size,
-    augment_size,
-    n_bands,
-    normalization_mean,
-    normalization_std,
-    module_name,
-):
-    # Predict the images
-    predictions = [
-        predict(
-            image,
-            model,
-            tiles_size,
-            augment_size,
-            n_bands,
-            normalization_mean,
-            normalization_std,
-            module_name,
-        )
-        for image in tqdm(images)
-    ]
-
-    # Get the crs from the first image
-    crs = get_satellite_image(images[0], n_bands).crs
-
+) -> Dict:
     # Get the predictions for all the images
-    all_preds = pd.concat([create_geojson_from_mask(x) for x in predictions])
-    all_preds.crs = crs
+    preds = pd.concat([create_geojson_from_mask(x) for x in predictions])
+    preds.crs = roi.crs
 
     # Restrict the predictions to the region of interest
     preds_roi = gpd.GeoDataFrame(
-        geometry=[unary_union(roi.geometry).intersection(unary_union(all_preds.geometry))],
+        geometry=[unary_union(roi.geometry).intersection(unary_union(preds.geometry))],
         crs=roi.crs,
     )
     return preds_roi
@@ -452,14 +447,12 @@ def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDa
     """
     # Load the filename to polygons mapping
     data = (
-        ds.dataset(
+        pq.ParquetDataset(
             "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
-            partitioning=["dep", "year"],
-            format="parquet",
             filesystem=fs,
+            filters=[("dep", "=", dep), ("year", "=", year)],
         )
-        .to_table()
-        .filter((ds.field("dep") == f"dep={dep}") & (ds.field("year") == f"year={year}"))
+        .read()
         .to_pandas()
     )
 

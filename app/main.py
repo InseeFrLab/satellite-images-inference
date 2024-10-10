@@ -127,7 +127,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
 
     else:
         logger.info(f"Loading prediction from cache for image: {image}")
-        lsi = load_from_cache(image, n_bands)
+        lsi = load_from_cache(image, n_bands, fs)
 
     if polygons:
         return JSONResponse(content=create_geojson_from_mask(lsi).to_json())

@@ -1,8 +1,8 @@
-FROM inseefrlab/onyxia-python-pytorch:py3.11.6
+FROM inseefrlab/onyxia-python-pytorch:py3.12.6
 
 ENV TIMEOUT=3600
 
-ENV PROJ_LIB=/opt/mamba/share/proj
+ENV PROJ_LIB=/opt/conda/share/proj
 
 # set api as the current work dir
 WORKDIR /api

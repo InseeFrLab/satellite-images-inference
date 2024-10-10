@@ -147,7 +147,7 @@ def predict_cluster(
     # Get cluster file
     clusters = (
         pq.ParquetDataset(
-            "projet-slums-detection/ilots/clusters", filesystem=fs, filters=[("dep", "=", dep)]
+            "projet-slums-detection/data-clusters", filesystem=fs, filters=[("dep", "=", dep)]
         )
         .read()
         .to_pandas()
@@ -190,6 +190,9 @@ def predict_cluster(
     }
 
     Response(content=json.dumps(response_data), media_type="text/plain")
+
+
+# faire un cache
 
 
 @app.get("/predict_bbox", tags=["Predict Bounding Box"])

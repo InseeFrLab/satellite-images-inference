@@ -10,6 +10,7 @@ from typing import Dict
 
 import geopandas as gpd
 import mlflow
+import numpy as np
 import pyarrow.parquet as pq
 from fastapi import FastAPI, Query, Response
 from osgeo import gdal
@@ -19,10 +20,12 @@ from app.logger_config import configure_logger
 from app.utils import (
     compute_roi_statistics,
     create_geojson_from_mask,
+    get_cache_path,
     get_file_system,
     get_filename_to_polygons,
     get_model,
     get_normalization_metrics,
+    load_from_cache,
     predict,
     subset_predictions,
 )
@@ -105,16 +108,23 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
     logger.info(f"Predict image endpoint accessed with image: {image}")
     gc.collect()
 
-    lsi = predict(
-        image=image,
-        model=model,
-        tiles_size=tiles_size,
-        augment_size=augment_size,
-        n_bands=n_bands,
-        normalization_mean=normalization_mean,
-        normalization_std=normalization_std,
-        module_name=module_name,
-    )
+    fs = get_file_system()
+
+    if not fs.exists(get_cache_path(image)):
+        lsi = predict(
+            image=image,
+            model=model,
+            tiles_size=tiles_size,
+            augment_size=augment_size,
+            n_bands=n_bands,
+            normalization_mean=normalization_mean,
+            normalization_std=normalization_std,
+            module_name=module_name,
+        )
+    else:
+        logger.info(f"Loading prediction from cache for image: {image}")
+        lsi = load_from_cache(image, n_bands)
+
     if polygons:
         return Response(content=create_geojson_from_mask(lsi).to_json(), media_type="text/plain")
     else:
@@ -167,17 +177,32 @@ def predict_cluster(
         "filename",
     ].tolist()
 
-    # Predict
-    predictions = predict(
-        images,
-        model,
-        tiles_size,
-        augment_size,
-        n_bands,
-        normalization_mean,
-        normalization_std,
-        module_name,
-    )
+    images_to_predict = [im for im in images if not fs.exists(get_cache_path(im))]
+    images_from_cache = [im for im in images if fs.exists(get_cache_path(im))]
+    predictions = []
+
+    if images_to_predict:
+        # Predict
+        predictions = predict(
+            images_to_predict,
+            model,
+            tiles_size,
+            augment_size,
+            n_bands,
+            normalization_mean,
+            normalization_std,
+            module_name,
+        )
+
+        # Save predictions to cache
+        for im, pred in zip(images_to_predict, predictions):
+            with fs.open(get_cache_path(im), "wb") as f:
+                np.save(f, pred.label)
+
+    if images_from_cache:
+        logger.info(f"Loading predictions from cache for images: {", ".join(images_from_cache)}")
+        # Load from cache
+        predictions += [load_from_cache(im, n_bands) for im in images_from_cache]
 
     # Restrict predictions to the selected cluster
     preds_cluster = subset_predictions(predictions, selected_cluster)
@@ -190,9 +215,6 @@ def predict_cluster(
     }
 
     Response(content=json.dumps(response_data), media_type="text/plain")
-
-
-# faire un cache
 
 
 @app.get("/predict_bbox", tags=["Predict Bounding Box"])
@@ -237,17 +259,32 @@ def predict_bbox(
         "filename",
     ].tolist()
 
-    # Predict the bbox
-    predictions = predict(
-        images,
-        model,
-        tiles_size,
-        augment_size,
-        n_bands,
-        normalization_mean,
-        normalization_std,
-        module_name,
-    )
+    images_to_predict = [im for im in images if not fs.exists(get_cache_path(im))]
+    images_from_cache = [im for im in images if fs.exists(get_cache_path(im))]
+    predictions = []
+
+    if images_to_predict:
+        # Predict the bbox
+        predictions = predict(
+            images_to_predict,
+            model,
+            tiles_size,
+            augment_size,
+            n_bands,
+            normalization_mean,
+            normalization_std,
+            module_name,
+        )
+
+        # Save predictions to cache
+        for im, pred in zip(images_to_predict, predictions):
+            with fs.open(get_cache_path(im), "wb") as f:
+                np.save(f, pred.label)
+
+    if images_from_cache:
+        logger.info(f"Loading predictions from cache for images: {", ".join(images_from_cache)}")
+        # Load from cache
+        predictions += [load_from_cache(im, n_bands) for im in images_from_cache]
 
     preds_bbox = subset_predictions(predictions, bbox_geo)
 

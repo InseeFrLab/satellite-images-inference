@@ -495,3 +495,43 @@ def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str
     )
 
     return roi.to_json()
+
+
+def get_cache_path(image: str) -> str:
+    """
+    Get the cache path for the image.
+
+    Args:
+        image (str): The image path.
+
+    Returns:
+        str: The cache path.
+    """
+
+    cache_path = os.path.dirname(image.replace(image.split("/")[1], "cache-predictions"))
+    image_name = os.path.splitext(os.path.basename(image))[0]
+    return f"{cache_path}/{image_name}.npy"
+
+
+def load_from_cache(
+    image: str, n_bands: list[int], filesystem: S3FileSystem
+) -> SegmentationLabeledSatelliteImage:
+    """
+    Load the image and mask from the cache.
+
+    Args:
+        image (str): The image path.
+        n_bands (list[int]): The number of bands.
+        filesystem (s3fs.S3FileSystem): The file system.
+
+    Returns:
+        SegmentationLabeledSatelliteImage: The labeled satellite image with the predicted mask.
+    """
+
+    mask_path = get_cache_path(image)
+
+    si = get_satellite_image(image, n_bands)
+    with filesystem.open(mask_path, "rb") as f:
+        mask = np.load(f)
+
+    return SegmentationLabeledSatelliteImage(si, mask)

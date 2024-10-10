@@ -112,7 +112,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
 
     if not fs.exists(get_cache_path(image)):
         lsi = predict(
-            image=image,
+            images=image,
             model=model,
             tiles_size=tiles_size,
             augment_size=augment_size,

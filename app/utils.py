@@ -429,7 +429,7 @@ def subset_predictions(
         geometry=[unary_union(roi.geometry).intersection(unary_union(preds.geometry))],
         crs=roi.crs,
     )
-    return preds_roi
+    return preds_roi.reset_index(drop=True)
 
 
 def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:
@@ -494,7 +494,7 @@ def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str
         area_cluster=area_cluster, area_building=area_building, pct_building=pct_building
     )
 
-    return roi.to_json()
+    return roi.reset_index(drop=True)
 
 
 def get_cache_path(image: str) -> str:

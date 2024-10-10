@@ -3,7 +3,6 @@ Main file for the API.
 """
 
 import gc
-import json
 import os
 from contextlib import asynccontextmanager
 from typing import Dict
@@ -12,7 +11,8 @@ import geopandas as gpd
 import mlflow
 import numpy as np
 import pyarrow.parquet as pq
-from fastapi import FastAPI, Query, Response
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
 from osgeo import gdal
 from shapely.geometry import box
 
@@ -126,7 +126,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
         lsi = load_from_cache(image, n_bands)
 
     if polygons:
-        return Response(content=create_geojson_from_mask(lsi).to_json(), media_type="text/plain")
+        return JSONResponse(content=create_geojson_from_mask(lsi).to_json())
     else:
         return {"mask": lsi.label.tolist()}
 
@@ -204,7 +204,7 @@ def predict_cluster(
             f"""Loading predictions from cache for images: {", ".join(images_from_cache)}"""
         )
         # Load from cache
-        predictions += [load_from_cache(im, n_bands) for im in images_from_cache]
+        predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
 
     # Restrict predictions to the selected cluster
     preds_cluster = subset_predictions(predictions, selected_cluster)
@@ -212,11 +212,11 @@ def predict_cluster(
     stats_cluster = compute_roi_statistics(predictions, selected_cluster)
 
     response_data = {
-        "predictions": preds_cluster.loc[:, "geometry"].to_json(),
-        "statistics": stats_cluster,
+        "predictions": preds_cluster.to_json(),
+        "statistics": stats_cluster.to_json(),
     }
 
-    Response(content=json.dumps(response_data), media_type="text/plain")
+    return JSONResponse(content=response_data)
 
 
 @app.get("/predict_bbox", tags=["Predict Bounding Box"])
@@ -286,15 +286,15 @@ def predict_bbox(
     if images_from_cache:
         logger.info(f"Loading predictions from cache for images: {", ".join(images_from_cache)}")
         # Load from cache
-        predictions += [load_from_cache(im, n_bands) for im in images_from_cache]
+        predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
 
     preds_bbox = subset_predictions(predictions, bbox_geo)
 
     stats_bbox = compute_roi_statistics(predictions, bbox_geo)
 
     response_data = {
-        "predictions": preds_bbox.loc[:, "geometry"].to_json(),
-        "statistics": stats_bbox,
+        "predictions": preds_bbox.to_json(),
+        "statistics": stats_bbox.to_json(),
     }
 
-    Response(content=json.dumps(response_data), media_type="text/plain")
+    return JSONResponse(content=response_data)

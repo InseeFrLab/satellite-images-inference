@@ -3,6 +3,7 @@ Main file for the API.
 """
 
 import gc
+import json
 import os
 from contextlib import asynccontextmanager
 from typing import Dict
@@ -16,6 +17,7 @@ from shapely.geometry import box
 
 from app.logger_config import configure_logger
 from app.utils import (
+    compute_roi_statistics,
     create_geojson_from_mask,
     get_file_system,
     get_filename_to_polygons,
@@ -177,9 +179,17 @@ def predict_cluster(
         module_name,
     )
 
+    # Restrict predictions to the selected cluster
     preds_cluster = subset_predictions(predictions, selected_cluster)
 
-    return Response(content=preds_cluster.loc[:, "geometry"].to_json(), media_type="text/plain")
+    stats_cluster = compute_roi_statistics(predictions, selected_cluster)
+
+    response_data = {
+        "predictions": preds_cluster.loc[:, "geometry"].to_json(),
+        "statistics": stats_cluster,
+    }
+
+    Response(content=json.dumps(response_data), media_type="text/plain")
 
 
 @app.get("/predict_bbox", tags=["Predict Bounding Box"])
@@ -238,4 +248,11 @@ def predict_bbox(
 
     preds_bbox = subset_predictions(predictions, bbox_geo)
 
-    return Response(content=preds_bbox.loc[:, "geometry"].to_json(), media_type="text/plain")
+    stats_bbox = compute_roi_statistics(predictions, bbox_geo)
+
+    response_data = {
+        "predictions": preds_bbox.loc[:, "geometry"].to_json(),
+        "statistics": stats_bbox,
+    }
+
+    Response(content=json.dumps(response_data), media_type="text/plain")

@@ -5,24 +5,24 @@ Utils.
 import json
 import os
 from typing import Dict, List
-import cv2
 
 import albumentations as A
+import cv2
 import geopandas as gpd
 import mlflow
 import numpy as np
+import pandas as pd
+import pyarrow.parquet as pq
 import rasterio
 import torch
 from albumentations.pytorch.transforms import ToTensorV2
 from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
-from rasterio.features import shapes
-from s3fs import S3FileSystem
-
 from astrovision.plot import make_mosaic
+from rasterio.features import rasterize, shapes
+from s3fs import S3FileSystem
 from shapely.ops import unary_union
-import pandas as pd
-import pyarrow.parquet as pq
 from tqdm import tqdm
+
 from app.logger_config import configure_logger
 
 logger = configure_logger()
@@ -459,3 +459,39 @@ def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDa
     # Convert the geometry column to a GeoSeries
     data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])
     return gpd.GeoDataFrame(data, geometry="geometry", crs=data.loc[0, "CRS"])
+
+
+def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str, float]:
+    """
+    Compute statistics of the predictions within a region of interest (ROI).
+
+    Args:
+        predictions (list): List of predictions.
+        roi (gpd.GeoDataFrame): Region of interest.
+
+    Returns:
+        dict: Dictionary containing the computed statistics.
+    """
+    RESOLUTION = 0.5
+    area_cluster = 0
+    area_building = 0
+
+    for pred in predictions:
+        polygon_mask = rasterize(
+            [(roi.geometry.iloc[0], 1)],
+            out_shape=pred.label.shape,
+            transform=pred.satellite_image.transform,
+            fill=0,
+            dtype=np.uint8,
+        )
+
+        original_mask = pred.label
+        area_cluster += polygon_mask.sum() * RESOLUTION**2
+        area_building += (original_mask * polygon_mask).sum() * RESOLUTION**2
+
+    pct_building = area_building / area_cluster * 100
+    roi = roi.assign(
+        area_cluster=area_cluster, area_building=area_building, pct_building=pct_building
+    )
+
+    return roi.to_json()

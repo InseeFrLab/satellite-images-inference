@@ -1,28 +1,30 @@
-import geopandas as gpd
-from tqdm.asyncio import tqdm
-import pandas as pd
 import argparse
 import asyncio
+
 import aiohttp
+import geopandas as gpd
+import pandas as pd
 import requests
+from tqdm.asyncio import tqdm
+
+from app.utils import get_file_system
 from src.postprocessing.postprocessing import clean_prediction
 from src.retrievals.wrappers import get_filename_to_polygons
-from app.utils import get_file_system
 
 
-async def fetch(session, url, image):
+async def fetch(session, url, **kwargs):
     try:
-        async with session.get(url, params={"image": image, "polygons": "True"}) as response:
+        async with session.get(url, **kwargs) as response:
             response_text = await response.text()
             return response_text
     except asyncio.TimeoutError:
-        print(f"Request timed out for URL: {url} and image: {image}")
+        print(f"Request timed out for URL: {url} and params: {kwargs}")
         return None
     except aiohttp.ClientPayloadError as e:
-        print(f"ClientPayloadError for URL: {url}, Error: {e}, Image: {image}")
+        print(f"ClientPayloadError for URL: {url}, Error: {e}, params: {kwargs}")
         return None
     except Exception as e:
-        print(f"An error occurred for URL: {url}, Error: {e}, Image: {image}")
+        print(f"An error occurred for URL: {url}, Error: {e}, params: {kwargs}")
         return None
 
 
@@ -58,7 +60,10 @@ async def main(dep: str, year: int):
 
     # Create an asynchronous HTTP client session
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        tasks = [fetch(session, url, image) for url, image in zip(urls, images)]
+        tasks = [
+            fetch(session, url, params={"image": image, "polygons": "True"})
+            for url, image in zip(urls, images)
+        ]
         responses = await tqdm.gather(*tasks)
 
     # Create a dictionary mapping images to their corresponding predictions
@@ -68,7 +73,7 @@ async def main(dep: str, year: int):
     for im, pred in result.items():
         try:
             # Read the prediction file as a GeoDataFrame
-            result[im] = gpd.read_file(pred, driver="GeoJSON")
+            result[im] = gpd.read_file(pred)
             result[im]["filename"] = im
         except Exception as e:
             print(f"Error with image {im}: {str(e)}")
@@ -87,7 +92,10 @@ async def main(dep: str, year: int):
         )
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            tasks = [fetch(session, url, image) for url, image in zip(urls, failed_images)]
+            tasks = [
+                fetch(session, url, params={"image": image, "polygons": "True"})
+                for url, image in zip(urls, failed_images)
+            ]
             responses_retry = await tqdm.gather(*tasks)
 
             result_retry = {k: v for k, v in zip(failed_images, responses_retry)}
@@ -96,7 +104,7 @@ async def main(dep: str, year: int):
             for im, pred in result_retry.items():
                 try:
                     # Update the result dictionary with the retry results for successful images
-                    result[im] = gpd.read_file(pred, driver="GeoJSON")
+                    result[im] = gpd.read_file(pred)
                     result[im]["filename"] = im
                 except Exception as e:
                     print(f"Error with image {im}: {str(e)}")

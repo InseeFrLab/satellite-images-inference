@@ -510,7 +510,7 @@ def get_cache_path(image: str) -> str:
 
     cache_path = os.path.dirname(image.replace(image.split("/")[1], "cache-predictions"))
     image_name = os.path.splitext(os.path.basename(image))[0]
-    return f"{cache_path}/{image_name}.npy"
+    return f"{cache_path}/{os.getenv("MLFLOW_MODEL_NAME")}/{os.getenv("MLFLOW_MODEL_VERSION")}/{image_name}.npy"
 
 
 def load_from_cache(

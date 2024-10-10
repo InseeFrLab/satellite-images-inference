@@ -121,6 +121,10 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
             normalization_std=normalization_std,
             module_name=module_name,
         )
+        # Save predictions to cache
+        with fs.open(get_cache_path(image), "wb") as f:
+            np.save(f, lsi.label)
+
     else:
         logger.info(f"Loading prediction from cache for image: {image}")
         lsi = load_from_cache(image, n_bands)

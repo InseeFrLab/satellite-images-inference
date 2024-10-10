@@ -486,8 +486,8 @@ def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str
         )
 
         original_mask = pred.label
-        area_cluster += polygon_mask.sum() * RESOLUTION**2
-        area_building += (original_mask * polygon_mask).sum() * RESOLUTION**2
+        area_cluster += (polygon_mask.sum() * RESOLUTION**2) / 1e6  # in km²
+        area_building += ((original_mask * polygon_mask).sum() * RESOLUTION**2) / 1e6  # in km²
 
     pct_building = area_building / area_cluster * 100
     roi = roi.assign(

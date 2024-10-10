@@ -200,7 +200,9 @@ def predict_cluster(
                 np.save(f, pred.label)
 
     if images_from_cache:
-        logger.info(f"Loading predictions from cache for images: {", ".join(images_from_cache)}")
+        logger.info(
+            f"""Loading predictions from cache for images: {", ".join(images_from_cache)}"""
+        )
         # Load from cache
         predictions += [load_from_cache(im, n_bands) for im in images_from_cache]
 

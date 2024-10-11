@@ -1,12 +1,13 @@
 from typing import Union
+
 import geopandas as gpd
-from tqdm import tqdm
-import pandas as pd
-import networkx as nx
-from geopandas import GeoSeries
-from shapely.geometry import MultiPolygon, LineString, MultiLineString
-from shapely.ops import unary_union
 import libpysal
+import networkx as nx
+import pandas as pd
+from geopandas import GeoSeries
+from shapely.geometry import LineString, MultiLineString, MultiPolygon
+from shapely.ops import unary_union
+from tqdm import tqdm
 
 
 def check_line_intersection(
@@ -38,7 +39,7 @@ def merge_adjacent_polygons(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     # TODO: potentially add tiny buffer on polygons ?
     # Create a spatial weights matrix
-    W = libpysal.weights.Queen.from_dataframe(gdf)
+    W = libpysal.weights.Queen.from_dataframe(gdf, use_index=False)
     # Merge adjacent polygons
     components = W.component_labels
     merged_gdf = gdf.dissolve(by=components)
@@ -94,7 +95,7 @@ def clean_prediction(gdf_original: gpd.GeoDataFrame, buffer_distance: int = 3) -
         gdf["filename"] = gdf["filename"].apply(lambda x: [x])
     if "filename" in gdf.columns:
         gdf_new["filename"] = gdf_new["filename"].apply(lambda x: [x])
-        
+
     gdf = pd.concat([gdf, gdf_new], ignore_index=True)
     gdf = gdf[~gdf["geometry"].is_empty].reset_index(drop=True)
 

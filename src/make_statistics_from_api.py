@@ -4,6 +4,7 @@ import asyncio
 import aiohttp
 import geopandas as gpd
 import pandas as pd
+import pyarrow.parquet as pq
 import requests
 from tqdm.asyncio import tqdm
 
@@ -41,8 +42,17 @@ async def main(dep: str, year: int):
     # Get file system
     fs = get_file_system()
 
-    # Restrict to ROI
-    clusters = ["976110412", "976110311", "976110312"]
+    # Get cluster list
+    clusters = (
+        pq.ParquetDataset(
+            "projet-slums-detection/data-clusters",
+            filesystem=fs,
+            filters=[("dep", "=", dep)],
+        )
+        .read(columns=["ident_ilot"])
+        .column("ident_ilot")
+        .to_pylist()
+    )
 
     urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_cluster"] * len(clusters)
     timeout = aiohttp.ClientTimeout(total=60 * 60 * 10)  # 10 heures timeout

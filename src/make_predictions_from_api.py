@@ -15,8 +15,8 @@ from src.retrievals.wrappers import get_filename_to_polygons
 async def fetch(session, url, **kwargs):
     try:
         async with session.get(url, **kwargs) as response:
-            response_text = await response.text()
-            return response_text
+            response = await response.json()
+            return response
     except asyncio.TimeoutError:
         print(f"Request timed out for URL: {url} and params: {kwargs}")
         return None

@@ -1,5 +1,7 @@
 import argparse
 import asyncio
+import os
+import tempfile
 
 import aiohttp
 import geopandas as gpd
@@ -10,6 +12,37 @@ from tqdm.asyncio import tqdm
 from app.utils import get_file_system
 from src.postprocessing.postprocessing import clean_prediction
 from src.retrievals.wrappers import get_filename_to_polygons
+
+
+def save_geopackage_to_s3(gdf, s3_path, filesystem):
+    """
+    Save a GeoDataFrame as a GeoPackage to S3.
+
+    Parameters:
+    -----------
+    gdf : geopandas.GeoDataFrame
+        The GeoDataFrame to save
+    s3_path : str
+        The S3 path where to save the file (including .gpkg extension)
+    filesystem : s3fs.S3FileSystem
+        Initialized S3 filesystem object
+    """
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(suffix=".gpkg", delete=False) as tmp_file:
+        temp_path = tmp_file.name
+
+    try:
+        # Save to temporary file
+        gdf.to_file(temp_path, driver="GPKG")
+
+        # Upload to S3
+        with open(temp_path, "rb") as file:
+            with filesystem.open(s3_path, "wb") as s3_file:
+                s3_file.write(file.read())
+    finally:
+        # Clean up temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
 async def fetch(session, url, **kwargs):
@@ -117,11 +150,16 @@ async def main(dep: str, year: int):
     predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
     predictions = clean_prediction(predictions, buffer_distance=3)
+    predictions = predictions[~predictions["geometry"].is_empty]
+
+    # Saving the results
     predictions_path = f"""projet-slums-detection/data-prediction/PLEIADES/{dep}/{year}/{model_info["model_name"]}/{model_info["model_version"]}/predictions"""
     predictions.to_parquet(f"{predictions_path}.parquet", filesystem=fs)
-
-    with fs.open(f"{predictions_path}.gpkg", "wb") as file:
-        predictions.loc[:, predictions.columns != "filename"].to_file(file, driver="GPKG")
+    save_geopackage_to_s3(
+        predictions.loc[:, predictions.columns != "filename"],
+        f"{predictions_path}.gpkg",
+        filesystem=fs,
+    )
 
     print(f"{failed_images}")
 

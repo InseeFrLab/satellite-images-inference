@@ -102,7 +102,7 @@ async def main(dep: str, year: int):
     # Create a dictionary mapping images to their corresponding predictions
     result = {k: v for k, v in zip(images, responses)}
 
-    failed_images = []
+    failed_query = []
     for im, pred in result.items():
         try:
             # Read the prediction file as a GeoDataFrame
@@ -112,28 +112,28 @@ async def main(dep: str, year: int):
             print(f"Error with image {im}: {str(e)}")
             print(f"Prediction returned: {pred}")
             # Get the list of failed images
-            failed_images.append(im)
+            failed_query.append(im)
 
     # Set the maximum number of retries for failed images
     max_retry = 50
     counter = 0
 
     # Retry failed images up to the maximum number of retries
-    while failed_images and counter < max_retry:
+    while failed_query and counter < max_retry:
         urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(
-            failed_images
+            failed_query
         )
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             tasks = [
                 fetch(session, url, params={"image": image, "polygons": "True"})
-                for url, image in zip(urls, failed_images)
+                for url, image in zip(urls, failed_query)
             ]
             responses_retry = await tqdm.gather(*tasks)
 
-            result_retry = {k: v for k, v in zip(failed_images, responses_retry)}
+            result_retry = {k: v for k, v in zip(failed_query, responses_retry)}
 
-            failed_images = []
+            failed_query = []
             for im, pred in result_retry.items():
                 try:
                     # Update the result dictionary with the retry results for successful images
@@ -142,7 +142,7 @@ async def main(dep: str, year: int):
                 except Exception as e:
                     print(f"Error with image {im}: {str(e)}")
                     # Get the list of failed images
-                    failed_images.append(im)
+                    failed_query.append(im)
 
         counter += 1
 
@@ -161,7 +161,7 @@ async def main(dep: str, year: int):
         filesystem=fs,
     )
 
-    print(f"{failed_images}")
+    print(f"{failed_query}")
 
 
 if __name__ == "__main__":

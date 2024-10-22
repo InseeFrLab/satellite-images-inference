@@ -4,6 +4,8 @@ Utils.
 
 import json
 import os
+import tempfile
+from contextlib import contextmanager
 from typing import Dict, List
 
 import albumentations as A
@@ -229,19 +231,31 @@ def produce_mask(
     return mask.numpy()
 
 
+@contextmanager
+def temporary_raster():
+    """Context manager for handling temporary raster files safely."""
+    temp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
+    try:
+        temp.close()
+        yield temp.name
+    finally:
+        try:
+            os.unlink(temp.name)
+        except OSError:
+            pass
+
+
 def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
     """
     Creates a GeoJSON string from a binary mask.
-
     Args:
         lsi: A SegmentationLabeledSatelliteImage.
-
     Returns:
         A GeoJSON string representing the clusters with value 1 in the binary mask.
-
     Raises:
         None.
     """
+    # Convert label to uint8
     lsi.label = lsi.label.astype("uint8")
 
     # Define the metadata for the raster image
@@ -257,15 +271,19 @@ def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
         ),  # pixel size is 0.5m
     }
 
-    # Write the binary array as a raster image
-    with rasterio.open("temp.tif", "w+", **metadata) as dst:
-        dst.write(lsi.label, 1)
-        results = [
-            {"properties": {"raster_val": v}, "geometry": s}
-            for i, (s, v) in enumerate(shapes(lsi.label, mask=None, transform=dst.transform))
-            if v == 1  # Keep only the clusters with value 1
-        ]
+    # Use the context manager for temporary file handling
+    with temporary_raster() as temp_tif:
+        with rasterio.open(temp_tif, "w+", **metadata) as dst:
+            dst.write(lsi.label, 1)
 
+            # Process shapes within the same rasterio context
+            results = [
+                {"properties": {"raster_val": v}, "geometry": s}
+                for i, (s, v) in enumerate(shapes(lsi.label, mask=None, transform=dst.transform))
+                if v == 1  # Keep only the clusters with value 1
+            ]
+
+    # Create and return GeoDataFrame
     if results:
         return gpd.GeoDataFrame.from_features(results).loc[:, "geometry"]
     else:
@@ -507,6 +525,12 @@ def get_cache_path(image: str) -> str:
     Returns:
         str: The cache path.
     """
+    assert (
+        "MLFLOW_MODEL_NAME" in os.environ
+    ), "Please set the MLFLOW_MODEL_NAME environment variable."
+    assert (
+        "MLFLOW_MODEL_VERSION" in os.environ
+    ), "Please set the MLFLOW_MODEL_VERSION environment variable."
 
     cache_path = os.path.dirname(image.replace(image.split("/")[1], "cache-predictions"))
     image_name = os.path.splitext(os.path.basename(image))[0]

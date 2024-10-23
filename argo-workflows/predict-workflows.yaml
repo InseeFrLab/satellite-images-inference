@@ -33,22 +33,16 @@ spec:
 
             {"DEP": "GUYANE", "YEAR": "2023"},
             {"DEP": "GUYANE", "YEAR": "2022"},
-            
+
             {"DEP": "SAINT-MARTIN", "YEAR": "2024"}
 
             ]'
 
   templates:
-    # Entrypoint DAG template
     - name: main
       dag:
         tasks:
-          # Task 0: Start pipeline
-          - name: start-pipeline
-            template: start-pipeline-wt
-          # Task 1: Preprocess images
           - name: run-predict-with-params
-            dependencies: [ start-pipeline ]
             template: run-predict-wt
             arguments:
               parameters:
@@ -59,16 +53,6 @@ spec:
             # Pass the inputs to the task using "withParam"
             withParam: "{{workflow.parameters.predict-conf-list}}"
 
-    # Now task container templates are defined
-    # Worker template for task 0 : start-pipeline
-    - name: start-pipeline-wt
-      inputs:
-      container:
-        image: busybox
-        command: [ sh, -c ]
-        args: [ "echo Starting pipeline" ]
-
-    # Worker template for task-1 : train model with params
     - name: run-predict-wt
       inputs:
         parameters:
@@ -81,10 +65,22 @@ spec:
           requests:
             cpu: 3
         command: ["/bin/bash", -c]
-        args: ["git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
-              cd satellite-images-inference/ &&
-              python -m src.make_predictions_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}}"
-              ]
+        args:
+          - |
+            git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
+            cd satellite-images-inference/ &&
+
+            # Make predictions
+            python -m src.make_predictions_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
+
+            # Fetch the JSON data and store model info in variables
+            MODEL_INFO=$(curl -s 'https://satellite-images-inference.lab.sspcloud.fr/') &&
+            MODEL_NAME=$(echo $MODEL_INFO | jq -r '.model_name') &&
+            MODEL_VERSION=$(echo $MODEL_INFO | jq -r '.model_version') &&
+            POD_NAME=geoserver-pod-0 &&
+
+            # Copy predictions to geoserver
+            ./bash/copy_to_geoserver.sh {{inputs.parameters.DEP}} {{inputs.parameters.YEAR}} $MODEL_NAME $MODEL_VERSION $POD_NAME
         volumeMounts:
           - mountPath: /dev/shm
             name: dshm

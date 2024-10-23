@@ -22,6 +22,7 @@ from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
 from astrovision.plot import make_mosaic
 from rasterio.features import rasterize, shapes
 from s3fs import S3FileSystem
+from shapely import make_valid
 from shapely.ops import unary_union
 from tqdm import tqdm
 
@@ -442,9 +443,27 @@ def subset_predictions(
     preds = pd.concat([create_geojson_from_mask(x) for x in predictions])
     preds.crs = roi.crs
 
+    if all([geom.is_valid for geom in roi.geometry]) and all(
+        [geom.is_valid for geom in preds.geometry]
+    ):
+        roi_union = unary_union(roi.geometry)
+        preds_union = unary_union(preds.geometry)
+
+    else:
+        # if the geometries are not valid, we need to fix them
+        roi_union = unary_union(
+            [make_valid(geom) if not geom.is_valid else geom for geom in roi.geometry]
+        )
+        preds_union = unary_union(
+            [make_valid(geom) if not geom.is_valid else geom for geom in preds.geometry]
+        )
+
+    # Perform the intersection with validated geometries
+    geom_preds_in_roi = roi_union.intersection(preds_union)
+
     # Restrict the predictions to the region of interest
     preds_roi = gpd.GeoDataFrame(
-        geometry=[unary_union(roi.geometry).intersection(unary_union(preds.geometry))],
+        geometry=[geom_preds_in_roi],
         crs=roi.crs,
     )
     return preds_roi.reset_index(drop=True)

@@ -1,6 +1,6 @@
 import geopandas as gpd
 from s3fs import S3FileSystem
-import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 import mlflow
 from app.utils import (
     get_normalization_metrics,
@@ -21,17 +21,11 @@ def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDa
 
     """
     # Load the filename to polygons mapping
-    data = (
-        ds.dataset(
-            "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
-            partitioning=["dep", "year"],
-            format="parquet",
-            filesystem=fs,
-        )
-        .to_table()
-        .filter((ds.field("dep") == f"dep={dep}") & (ds.field("year") == f"year={year}"))
-        .to_pandas()
-    )
+    data = pq.ParquetDataset(
+        "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
+        filesystem=fs,
+        filters=[("dep", "=", dep), ("year", "=", year)],
+    ).read().to_pandas()
 
     # Convert the geometry column to a GeoSeries
     data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])

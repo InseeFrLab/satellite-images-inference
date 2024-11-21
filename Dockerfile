@@ -11,7 +11,7 @@ WORKDIR /api
 COPY requirements.txt requirements.txt
 
 # install all the requirements
-RUN mamba install -c conda-forge gdal=3.8.4 -y &&\
+RUN conda install -c conda-forge gdal=3.9.3 -y &&\
     pip install --no-cache-dir --upgrade -r requirements.txt
 
 # copy the main code of fastapi

@@ -20,6 +20,7 @@ import torch
 from albumentations.pytorch.transforms import ToTensorV2
 from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
 from astrovision.plot import make_mosaic
+from pqdm.processes import pqdm
 from rasterio.features import rasterize, shapes
 from s3fs import S3FileSystem
 from shapely import make_valid
@@ -401,9 +402,12 @@ def predict(
             else:
                 si_splitted = si.split(tiles_size)
 
-                lsi_splitted = [
-                    make_prediction(
-                        s_si,
+                max_workers = min(len(si_splitted) // 8, 50)
+
+                # Use pqdm for parallelization
+                args = [
+                    [
+                        im,
                         model,
                         tiles_size,
                         augment_size,
@@ -411,9 +415,11 @@ def predict(
                         normalization_mean,
                         normalization_std,
                         module_name,
-                    )
-                    for s_si in tqdm(si_splitted)
+                    ]
+                    for im in si_splitted
                 ]
+
+                lsi_splitted = pqdm(args, make_prediction, n_jobs=max_workers, argument_type="args")
 
                 lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
         else:

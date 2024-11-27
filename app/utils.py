@@ -194,20 +194,23 @@ def preprocess_image(
 
 
 def produce_mask(
-    prediction: np.array, model: mlflow.pyfunc.PyFuncModel, module_name: str, image_size: tuple
+    prediction: np.array,
+    module_name: str,
 ):
     """
     Produces mask from prediction array based on the specified model.
 
     Args:
         prediction (np.array): Array containing the prediction.
-        model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
         module_name (str): Name of the module used for training.
-        image_size (tuple): Size of the original image.
 
     Returns:
         np.array: Mask generated from prediction array.
     """
+
+    # Make prediction torch tensor
+    prediction = torch.from_numpy(prediction)
+
     # Determine mask generation based on module name
     match module_name:
         case "deeplabv3":
@@ -217,14 +220,7 @@ def produce_mask(
             mask = prediction.sigmoid() > 0.5
 
         case "segformer-b5":
-            # Interpolate prediction to original image size
-            interpolated_prediction = torch.nn.functional.interpolate(
-                prediction,
-                size=image_size,
-                mode="bilinear",
-                align_corners=False,
-            )
-            mask = torch.argmax(interpolated_prediction, dim=1).squeeze()
+            mask = torch.argmax(prediction, dim=0)
 
         case _:
             raise ValueError("Invalid module name specified.")
@@ -329,11 +325,21 @@ def make_prediction(
 
     # Make prediction using the model
     with torch.no_grad():
-        prediction = torch.tensor(model.predict(normalized_si.numpy()))
+        prediction = model.predict(normalized_si.numpy())
 
-    # Produce mask from prediction
-    mask = produce_mask(prediction, model, module_name, image.array.shape[-2:])
-    return SegmentationLabeledSatelliteImage(image, mask)
+    if prediction.shape[-2:] != (tiles_size, tiles_size):
+        prediction = (
+            torch.nn.functional.interpolate(
+                torch.from_numpy(prediction),
+                size=tiles_size,
+                mode="bilinear",
+                align_corners=False,
+            )
+            .squeeze()
+            .numpy()
+        )
+
+    return SegmentationLabeledSatelliteImage(image, prediction, logits=True)
 
 
 def predict(
@@ -577,4 +583,5 @@ def load_from_cache(
     with filesystem.open(mask_path, "rb") as f:
         mask = np.load(f)
 
-    return SegmentationLabeledSatelliteImage(si, mask)
+    logits = True if len(mask.shape) >= 3 else False
+    return SegmentationLabeledSatelliteImage(si, mask, logits=logits)

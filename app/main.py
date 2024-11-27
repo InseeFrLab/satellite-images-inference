@@ -27,6 +27,7 @@ from app.utils import (
     get_normalization_metrics,
     load_from_cache,
     predict,
+    produce_mask,
     subset_predictions,
 )
 
@@ -129,6 +130,9 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
         logger.info(f"Loading prediction from cache for image: {image}")
         lsi = load_from_cache(image, n_bands, fs)
 
+    # Produce mask with class IDs
+    lsi.label = produce_mask(lsi.label, module_name)
+
     if polygons:
         return JSONResponse(content=create_geojson_from_mask(lsi).to_json())
     else:
@@ -209,6 +213,10 @@ def predict_cluster(
         )
         # Load from cache
         predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
+
+    # Produce mask with class IDs TODO : check if ok
+    for lsi in predictions:
+        lsi.label = produce_mask(lsi.label, module_name)
 
     # Restrict predictions to the selected cluster
     preds_cluster = subset_predictions(predictions, selected_cluster)
@@ -291,6 +299,10 @@ def predict_bbox(
         logger.info(f"Loading predictions from cache for images: {", ".join(images_from_cache)}")
         # Load from cache
         predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
+
+    # Produce mask with class IDs TODO : check if ok
+    for lsi in predictions:
+        lsi.label = produce_mask(lsi.label, module_name)
 
     preds_bbox = subset_predictions(predictions, bbox_geo)
 

@@ -1,14 +1,12 @@
-import s3fs
-from pqdm.processes import pqdm
 import geopandas as gpd
-from astrovision.data import SatelliteImage
-from osgeo import gdal
 import pandas as pd
-from shapely import Polygon
 import pyarrow as pa
 import pyarrow.parquet as pq
-import pyarrow.dataset as ds
-
+import s3fs
+from astrovision.data import SatelliteImage
+from osgeo import gdal
+from pqdm.processes import pqdm
+from shapely import Polygon
 
 gdal.UseExceptions()
 
@@ -68,17 +66,16 @@ list_filename = fs.glob("projet-slums-detection/data-raw/PLEIADES/**/**/*.jp2") 
 )
 
 current_filename_to_poly = (
-    ds.dataset(
-        "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
-        partitioning=["dep", "year"],
-        format="parquet",
-        filesystem=fs,
+    pq.ParquetDataset(
+        "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/", filesystem=fs
     )
-    .to_table()
+    .read()
     .to_pandas()
 )
 
-list_missing_files = [x for x in list_filename if x not in current_filename_to_poly.filename.to_list()]
+list_missing_files = [
+    x for x in list_filename if x not in current_filename_to_poly.filename.to_list()
+]
 
 file_retrieved = []
 list_gpd = []

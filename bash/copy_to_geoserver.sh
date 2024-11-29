@@ -31,8 +31,10 @@ kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c '
         chmod +x /usr/local/bin/mc &&
         echo "MinIO client installed."
     else
+        chmod +x /usr/local/bin/mc &&
         echo "MinIO client is already installed."
     fi
+    export MC_HOST_s3=https://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@${AWS_S3_ENDPOINT}
 '
 
 # Copy raw data from S3 to the GeoServer directly
@@ -45,7 +47,6 @@ kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
 # Copy predictions from S3 to the GeoServer directly
 echo "Copying predictions..."
 kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
-    export MC_HOST_s3=https://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@${AWS_S3_ENDPOINT} && \
     mc cp s3/projet-slums-detection/data-prediction/PLEIADES/${departement}/${annee}/${model}/${version}/predictions.gpkg \
         /opt/geoserver/data_dir/PREDICTIONS/PLEIADES/${departement}/${annee}/${model}/${version}/predictions.gpkg && \
     echo 'Predictions file successfully copied.'"

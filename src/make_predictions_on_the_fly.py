@@ -1,16 +1,17 @@
-import geopandas as gpd
-from tqdm import tqdm
-import pandas as pd
 import argparse
 import os
-from src.postprocessing.postprocessing import clean_prediction
-from src.retrievals.wrappers import fetch_model, get_filename_to_polygons
+
+import geopandas as gpd
+import pandas as pd
+from tqdm import tqdm
 
 from app.utils import (
-    get_file_system,
     create_geojson_from_mask,
+    get_file_system,
     predict,
 )
+from src.postprocessing.postprocessing import clean_prediction
+from src.retrievals.wrappers import fetch_model, get_filename_to_polygons
 
 
 def main(dep: str, year: int):

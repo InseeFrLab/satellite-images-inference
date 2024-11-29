@@ -1,13 +1,13 @@
-import s3fs
-from pqdm.processes import pqdm
-from osgeo import gdal
 import os
+import subprocess
 
-from rasterio.io import MemoryFile
 import boto3
+import s3fs
+from osgeo import gdal
+from pqdm.processes import pqdm
+from rasterio.io import MemoryFile
 from rio_cogeo.cogeo import cog_translate
 from rio_cogeo.profiles import cog_profiles
-import subprocess
 
 gdal.UseExceptions()
 

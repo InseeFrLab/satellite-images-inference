@@ -1,7 +1,8 @@
-import s3fs
-from pqdm.processes import pqdm
-from osgeo import gdal
 import os
+
+import s3fs
+from osgeo import gdal
+from pqdm.processes import pqdm
 
 
 def convert_jp2_to_geotiff(file: str):

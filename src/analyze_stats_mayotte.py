@@ -1,16 +1,17 @@
 """
 Script to analyze building area statistics in Mayotte.
 """
-import pandas as pd
-from make_predictions_from_api import get_file_system, merge_adjacent_polygons
-import geopandas as gpd
-from s3fs import S3FileSystem
-import pyarrow.dataset as ds
-import rasterio
-from matplotlib import pyplot as plt
-from osgeo import gdal
 import tempfile
 from pathlib import Path
+
+import geopandas as gpd
+import pandas as pd
+import pyarrow.dataset as ds
+import rasterio
+from make_predictions_from_api import get_file_system, merge_adjacent_polygons
+from matplotlib import pyplot as plt
+from osgeo import gdal
+from s3fs import S3FileSystem
 
 
 def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:

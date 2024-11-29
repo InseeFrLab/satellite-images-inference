@@ -36,18 +36,18 @@ def compute_ilots_statistics(year: int, dep: str):
 
         # Intersection of ilots with predictions
         clusters = clusters.to_crs("EPSG:4471")
-        clusters["geometry"] = clusters["geometry"].intersection(
-            clean_predictions.geometry[0]
-        )
+        clusters["geometry"] = clusters["geometry"].intersection(clean_predictions.geometry[0])
 
         # Building area statistics
-        clusters["area"] = clusters['geometry'].area / 10**6
-        clusters_info = clusters[
-            ["ident_ilot", "code", "depcom_2018", "area"]
-        ].reset_index(drop=True)
+        clusters["area"] = clusters["geometry"].area / 10**6
+        clusters_info = clusters[["ident_ilot", "code", "depcom_2018", "area"]].reset_index(
+            drop=True
+        )
 
         # Export statistics to csv
-        statistics_path = f"projet-slums-detection/prediction_statistics/PLEIADES/ilots_{dep}_{year}.csv"
+        statistics_path = (
+            f"projet-slums-detection/prediction_statistics/PLEIADES/ilots_{dep}_{year}.csv"
+        )
         with fs.open(statistics_path, "wb") as f:
             clusters_info.to_csv(f, index=False)
     else:

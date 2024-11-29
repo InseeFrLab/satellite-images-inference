@@ -29,9 +29,9 @@
 #  DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+import argparse
 import os.path
 import struct
-import argparse
 
 from osgeo import gdal
 

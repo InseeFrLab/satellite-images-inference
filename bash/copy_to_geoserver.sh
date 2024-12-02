@@ -26,14 +26,9 @@ nom_pod="$5"
 # Install MinIO client
 echo "Installing MinIO client if needed..."
 kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c '
-    if ! command -v mc &> /dev/null; then
-        wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc &&
-        chmod +x /usr/local/bin/mc &&
-        echo "MinIO client installed."
-    else
-        chmod +x /usr/local/bin/mc &&
-        echo "MinIO client is already installed."
-    fi
+    wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc &&
+    chmod +x /usr/local/bin/mc &&
+    echo "MinIO client installed." &&
     export MC_HOST_s3=https://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@${AWS_S3_ENDPOINT}
 '
 

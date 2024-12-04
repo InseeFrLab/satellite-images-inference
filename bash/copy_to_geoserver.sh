@@ -46,4 +46,6 @@ kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
         /opt/geoserver/data_dir/PREDICTIONS/PLEIADES/${departement}/${annee}/${model}/${version}/predictions.gpkg && \
     echo 'Predictions file successfully copied.'"
 
+echo "Giving permissions..."
+kubectl exec ${nom_pod} -- chmod -R a+rw /opt/geoserver/data_dir
 echo "Script completed successfully!"

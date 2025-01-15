@@ -501,7 +501,7 @@ def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDa
 
     # Convert the geometry column to a GeoSeries
     data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])
-    return gpd.GeoDataFrame(data, geometry="geometry", crs=data.loc[0, "CRS"])
+    return gpd.GeoDataFrame(data, geometry="geometry", crs=data.CRS.unique()[0])
 
 
 def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str, float]:
@@ -530,7 +530,10 @@ def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str
 
         original_mask = pred.label
         area_cluster += (polygon_mask.sum() * RESOLUTION**2) / 1e6  # in km²
-        area_building += ((original_mask * polygon_mask).sum() * RESOLUTION**2) / 1e6  # in km²
+        # TODO: Assume 1 is label for buildings
+        area_building += (
+            ((original_mask == 1) * polygon_mask).sum() * RESOLUTION**2
+        ) / 1e6  # in km²
 
     pct_building = area_building / area_cluster * 100
     roi = roi.assign(

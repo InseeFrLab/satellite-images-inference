@@ -142,8 +142,10 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
 @app.get("/predict_cluster", tags=["Predict Cluster"])
 def predict_cluster(
     cluster_id: str,
-    year: int = Query(2022, ge=2017, le=2023),
-    dep: str = Query("MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION)$"),
+    year: int = Query(2022, ge=2017, le=2025),
+    dep: str = Query(
+        "MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION|SAINT-MARTIN)$"
+    ),
 ) -> Dict:
     """
     Predicts cluster for a given cluster ID, year, and department.

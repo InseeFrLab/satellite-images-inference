@@ -30,7 +30,11 @@ jobs:
         # https://github.com/actions/virtual-environments/issues/2840
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
-          docker rmi -f $(docker images -aq)
+          if [ "$(docker images -q)" ]; then
+            docker rmi -f $(docker images -q)
+          else
+            echo "No Docker images to remove."
+          fi
         shell: bash
 
       - name: Set up QEMU

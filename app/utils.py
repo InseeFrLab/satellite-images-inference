@@ -244,13 +244,11 @@ def temporary_raster():
 
 def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
     """
-    Creates a GeoJSON string from a binary mask.
+    Creates a Geopandas from a binary or multiclass mask.
     Args:
         lsi: A SegmentationLabeledSatelliteImage.
     Returns:
-        A GeoJSON string representing the clusters with value 1 in the binary mask.
-    Raises:
-        None.
+        A Geopandas representing the clusters with their respective labels.
     """
     # Convert label to uint8
     lsi.label = lsi.label.astype("uint8")
@@ -275,16 +273,16 @@ def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
 
             # Process shapes within the same rasterio context
             results = [
-                {"properties": {"raster_val": v}, "geometry": s}
+                {"properties": {"label": int(v)}, "geometry": s}
                 for i, (s, v) in enumerate(shapes(lsi.label, mask=None, transform=dst.transform))
-                if v == 1  # Keep only the clusters with value 1
+                if v != 0  # Keep only the labels which are not 0
             ]
 
     # Create and return GeoDataFrame
     if results:
-        return gpd.GeoDataFrame.from_features(results).loc[:, "geometry"]
+        return gpd.GeoDataFrame.from_features(results)
     else:
-        return gpd.GeoDataFrame(columns=["geometry"])
+        return gpd.GeoDataFrame(columns=["geometry", "label"])
 
 
 def make_prediction(

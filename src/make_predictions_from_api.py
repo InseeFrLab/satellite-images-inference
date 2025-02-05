@@ -149,7 +149,7 @@ async def main(dep: str, year: int):
     # Filter out images with failed predictions from the result dictionary
     predictions = pd.concat([gdf for gdf in result.values() if isinstance(gdf, gpd.GeoDataFrame)])
     predictions.crs = roi.crs
-    predictions = clean_prediction(predictions, buffer_distance=3)
+    # predictions = clean_prediction(predictions, buffer_distance=3)
     predictions = predictions[~predictions["geometry"].is_empty]
 
     # Saving the results

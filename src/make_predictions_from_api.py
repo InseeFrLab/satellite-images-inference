@@ -10,7 +10,8 @@ import requests
 from tqdm.asyncio import tqdm
 
 from app.utils import get_file_system
-from src.postprocessing.postprocessing import clean_prediction
+
+# from src.postprocessing.postprocessing import clean_prediction
 from src.retrievals.wrappers import get_filename_to_polygons
 
 

@@ -447,30 +447,47 @@ def subset_predictions(
     preds = pd.concat([create_geojson_from_mask(x) for x in predictions])
     preds.crs = roi.crs
 
-    if all([geom.is_valid for geom in roi.geometry]) and all(
-        [geom.is_valid for geom in preds.geometry]
-    ):
-        roi_union = unary_union(roi.geometry)
-        preds_union = unary_union(preds.geometry)
-
-    else:
-        # if the geometries are not valid, we need to fix them
-        roi_union = unary_union(
-            [make_valid(geom) if not geom.is_valid else geom for geom in roi.geometry]
-        )
-        preds_union = unary_union(
-            [make_valid(geom) if not geom.is_valid else geom for geom in preds.geometry]
+    # Ensure the geometries are valid
+    if not all([geom.is_valid for geom in roi.geometry]):
+        roi["geometry"] = roi["geometry"].apply(
+            lambda geom: make_valid(geom) if not geom.is_valid else geom
         )
 
-    # Perform the intersection with validated geometries
-    geom_preds_in_roi = roi_union.intersection(preds_union)
+    if not all([geom.is_valid for geom in preds.geometry]):
+        preds["geometry"] = preds["geometry"].apply(
+            lambda geom: make_valid(geom) if not geom.is_valid else geom
+        )
 
-    # Restrict the predictions to the region of interest
-    preds_roi = gpd.GeoDataFrame(
-        geometry=[geom_preds_in_roi],
-        crs=roi.crs,
-    )
-    return preds_roi.reset_index(drop=True)
+    # Union of the roi geometries
+    roi_union = unary_union(roi.geometry)
+
+    # Initialize a dictionary to store the results
+    results = []
+
+    # TODO: Peut-etre qu'on veut loop sur toutes les geometries plutôt pour garder l'info indiv des geométries mais plus couteux de faire N intersections
+
+    # Iterate over each label in the predictions
+    for label in preds["label"].unique():
+        # Subset the predictions for the current label
+        preds_label = preds[preds["label"] == label]
+
+        # Union of the prediction geometries for the current label
+        preds_union = unary_union(preds_label.geometry)
+
+        # Perform the intersection with validated geometries
+        geom_preds_in_roi = roi_union.intersection(preds_union)
+
+        # Restrict the predictions to the region of interest
+        preds_roi = gpd.GeoDataFrame(
+            {"geometry": geom_preds_in_roi, "label": [label]},
+            crs=roi.crs,
+        )
+
+        # Store the result in the dictionary
+        results.append(preds_roi.reset_index(drop=True))
+
+    results = pd.concat(results)
+    return results[~results["geometry"].is_empty]
 
 
 def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:

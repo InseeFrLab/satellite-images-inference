@@ -187,6 +187,22 @@ def predict_cluster(
         "filename",
     ].tolist()
 
+    # Check if images are found in S3 bucket
+    if not images:
+        logger.info(
+            f"""No images found for cluster_id: {cluster_id}, year: {year}, and department: {dep}"""
+        )
+        return JSONResponse(
+            content={
+                "predictions": gpd.GeoDataFrame(
+                    columns=["geometry"], crs=filename_table.crs
+                ).to_json(),
+                "statistics": gpd.GeoDataFrame(
+                    columns=["geometry"], crs=filename_table.crs
+                ).to_json(),
+            }
+        )
+
     images_to_predict = [im for im in images if not fs.exists(get_cache_path(im))]
     images_from_cache = [im for im in images if fs.exists(get_cache_path(im))]
     predictions = []
@@ -274,6 +290,22 @@ def predict_bbox(
         filename_table.geometry.intersects(bbox_geo.geometry.iloc[0]),
         "filename",
     ].tolist()
+
+    # Check if images are found in S3 bucket
+    if not images:
+        logger.info(
+            f"""No images found for bounding box: ({xmin}, {xmax}, {ymin}, {ymax}), epsg: {epsg}, year: {year}, and department: {dep}"""
+        )
+        return JSONResponse(
+            content={
+                "predictions": gpd.GeoDataFrame(
+                    columns=["geometry"], crs=filename_table.crs
+                ).to_json(),
+                "statistics": gpd.GeoDataFrame(
+                    columns=["geometry"], crs=filename_table.crs
+                ).to_json(),
+            }
+        )
 
     images_to_predict = [im for im in images if not fs.exists(get_cache_path(im))]
     images_from_cache = [im for im in images if fs.exists(get_cache_path(im))]

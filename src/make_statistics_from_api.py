@@ -54,6 +54,41 @@ async def main(dep: str, year: int):
         .to_pylist()
     )
 
+    # On retire des clusters de Guyane très gros pour le moment
+    clusters_to_ignore = [
+        "97301PED1",
+        "97301PED2",
+        "97303PED3",
+        "97303PED4",
+        "97304PED7",
+        "97306PED4",
+        "97308PE10",
+        "97308PED9",
+        "97311PED3",
+        "97311PED4",
+        "97311PED8",
+        "97312PED9",
+        "97312PE11",
+        "97314PED2",
+        "97314PED3",
+        "97352PED2",
+        "97353PE11",
+        "97356PED7",
+        "97357PE36",
+        "97357PE38",
+        "97357PE40",
+        "97358PED1",
+        "97358PED2",
+        "97360PE29",
+        "97360PE30",
+        "97360PE33",
+        "97360PE31",
+        "97360PE32",
+        "97362PE12",
+        "97362PE13",
+    ]
+    clusters = list(set(clusters) - set(clusters_to_ignore))
+
     urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_cluster"] * len(clusters)
     timeout = aiohttp.ClientTimeout(total=60 * 60 * 10)  # 10 heures timeout
 

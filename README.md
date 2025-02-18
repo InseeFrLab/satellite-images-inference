@@ -21,6 +21,7 @@ This project is designed to perform segmentation inference on satellite images u
 ## 🛠️ Usage
 
 To perform inference on a new set of satellite images stored in the S3 Bucket: 
+
 📂 Path: `projet-slums-detection/data-raw/PLEIADES/<dep>/<year>/`
 
 ### 🔗 Step 1: Register new images

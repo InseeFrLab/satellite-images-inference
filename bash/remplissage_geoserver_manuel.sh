@@ -1,5 +1,4 @@
-
-kubectl exect -it geoserver-pod-0 /bin/bash
+kubectl exec -it geoserver-pod-0 -- /bin/bash
 
 wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /tmp/mc 
 chmod +x /tmp/mc 

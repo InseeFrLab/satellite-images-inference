@@ -5,5 +5,5 @@ chmod +x /tmp/mc
 
 export MC_HOST_s3=
 
-/tmp/mc cp s3/projet-slums-detection/data-raw/PLEIADES/GUYANE/2024/ /opt/geoserver/data_dir/PLEIADES/GUYANE/2024
+/tmp/mc cp -r s3/projet-slums-detection/data-raw/PLEIADES/GUYANE/2024/ /opt/geoserver/data_dir/PLEIADES/GUYANE/2024
 chmod -R a+rw /opt/geoserver/data_dir

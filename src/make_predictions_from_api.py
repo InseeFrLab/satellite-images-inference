@@ -172,7 +172,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--year",
         type=int,
-        choices=[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+        choices=[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
         metavar="N",
         default=2020,
         help="Year of the dataset to make predictions on",

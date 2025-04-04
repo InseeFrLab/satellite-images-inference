@@ -3,6 +3,7 @@ Main file for the API.
 """
 
 import gc
+import logging
 import os
 from contextlib import asynccontextmanager
 from typing import Dict
@@ -11,7 +12,7 @@ import geopandas as gpd
 import mlflow
 import numpy as np
 import pyarrow.parquet as pq
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 from osgeo import gdal
 from shapely.geometry import box
@@ -31,33 +32,24 @@ from app.utils import (
     subset_predictions,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Asynchronous context manager for managing the lifespan of the API.
-    This context manager is used to load the ML model and other resources
-    when the API starts and clean them up when the API stops.
-    Args:
-        app (FastAPI): The FastAPI application.
-    """
-    global logger, model, n_bands, tiles_size, augment_size, module_name, normalization_mean, normalization_std
-
     gdal.UseExceptions()
-    logger = configure_logger()
+    configure_logger()
+    logger.info("🚀 Starting API lifespan")
 
-    model_name: str = os.getenv("MLFLOW_MODEL_NAME")
-    model_version: str = os.getenv("MLFLOW_MODEL_VERSION")
-    # Load the ML model
-    model = get_model(model_name, model_version)
-
-    # Extract several variables from model metadata
-    n_bands = int(mlflow.get_run(model.metadata.run_id).data.params["n_bands"])
-    tiles_size = int(mlflow.get_run(model.metadata.run_id).data.params["tiles_size"])
-    augment_size = int(mlflow.get_run(model.metadata.run_id).data.params["augment_size"])
-    module_name = mlflow.get_run(model.metadata.run_id).data.params["module_name"]
-    normalization_mean, normalization_std = get_normalization_metrics(model, n_bands)
+    app.state.model = get_model(os.environ["MLFLOW_MODEL_NAME"], os.environ["MLFLOW_MODEL_VERSION"])
+    model_params = mlflow.get_run(app.state.model.metadata.run_id).data.params
+    app.state.n_bands = int(model_params["n_bands"])
+    app.state.tiles_size = int(model_params["tiles_size"])
+    app.state.augment_size = int(model_params["augment_size"])
+    app.state.module_name = model_params["module_name"]
+    app.state.normalization_mean, app.state.normalization_std = get_normalization_metrics(model_params)
     yield
+    logger.info("🛑 Shutting down API lifespan")
 
 
 app = FastAPI(
@@ -73,17 +65,16 @@ def show_welcome_page():
     """
     Show welcome page with current model name and version.
     """
-    model_name: str = os.getenv("MLFLOW_MODEL_NAME")
-    model_version: str = os.getenv("MLFLOW_MODEL_VERSION")
     return {
         "message": "Satellite Image Inference",
-        "model_name": f"{model_name}",
-        "model_version": f"{model_version}",
+        "model_name": os.environ["MLFLOW_MODEL_NAME"],
+        "model_version": os.environ["MLFLOW_MODEL_VERSION"],
     }
 
 
+# TODO, use request app state as only arguments of predict function to clean a bit
 @app.get("/predict_image", tags=["Predict Image"])
-async def predict_image(image: str, polygons: bool = False) -> Dict:
+async def predict_image(request: Request, image: str, polygons: bool = False) -> Dict:
     """
     Predicts mask for a given satellite image.
 
@@ -106,13 +97,13 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
     if not fs.exists(get_cache_path(image)):
         lsi = predict(
             images=image,
-            model=model,
-            tiles_size=tiles_size,
-            augment_size=augment_size,
-            n_bands=n_bands,
-            normalization_mean=normalization_mean,
-            normalization_std=normalization_std,
-            module_name=module_name,
+            model=request.app.state.model,
+            tiles_size=request.app.state.tiles_size,
+            augment_size=request.app.state.augment_size,
+            n_bands=request.app.state.n_bands,
+            normalization_mean=request.app.state.normalization_mean,
+            normalization_std=request.app.state.normalization_std,
+            module_name=request.app.state.module_name,
         )
         # Save predictions to cache
         with fs.open(get_cache_path(image), "wb") as f:
@@ -120,10 +111,10 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
 
     else:
         logger.info(f"Loading prediction from cache for image: {image}")
-        lsi = load_from_cache(image, n_bands, fs)
+        lsi = load_from_cache(image, request.app.state.n_bands, fs)
 
     # Produce mask with class IDs
-    lsi.label = produce_mask(lsi.label, module_name)
+    lsi.label = produce_mask(lsi.label, request.app.state.module_name)
 
     if polygons:
         return JSONResponse(content=create_geojson_from_mask(lsi).to_json())
@@ -133,6 +124,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
 
 @app.get("/predict_cluster", tags=["Predict Cluster"])
 def predict_cluster(
+    request: Request,
     cluster_id: str,
     year: int = Query(2022, ge=2017, le=2025),
     dep: str = Query("MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION|SAINT-MARTIN)$"),
@@ -189,13 +181,13 @@ def predict_cluster(
         # Predict
         predictions = predict(
             images_to_predict,
-            model,
-            tiles_size,
-            augment_size,
-            n_bands,
-            normalization_mean,
-            normalization_std,
-            module_name,
+            request.app.state.model,
+            request.app.state.tiles_size,
+            request.app.state.augment_size,
+            request.app.state.n_bands,
+            request.app.state.normalization_mean,
+            request.app.state.normalization_std,
+            request.app.state.module_name,
         )
 
         # Save predictions to cache
@@ -206,11 +198,11 @@ def predict_cluster(
     if images_from_cache:
         logger.info(f"""Loading predictions from cache for images: {", ".join(images_from_cache)}""")
         # Load from cache
-        predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
+        predictions += [load_from_cache(im, request.app.state.n_bands, fs) for im in images_from_cache]
 
     # Produce mask with class IDs TODO : check if ok
     for lsi in predictions:
-        lsi.label = produce_mask(lsi.label, module_name)
+        lsi.label = produce_mask(lsi.label, request.app.state.module_name)
 
     # Restrict predictions to the selected cluster
     preds_cluster = subset_predictions(predictions, selected_cluster)
@@ -227,6 +219,7 @@ def predict_cluster(
 
 @app.get("/predict_bbox", tags=["Predict Bounding Box"])
 def predict_bbox(
+    request: Request,
     xmin: float,
     xmax: float,
     ymin: float,
@@ -287,13 +280,13 @@ def predict_bbox(
         # Predict the bbox
         predictions = predict(
             images_to_predict,
-            model,
-            tiles_size,
-            augment_size,
-            n_bands,
-            normalization_mean,
-            normalization_std,
-            module_name,
+            request.app.state.model,
+            request.app.state.tiles_size,
+            request.app.state.augment_size,
+            request.app.state.n_bands,
+            request.app.state.normalization_mean,
+            request.app.state.normalization_std,
+            request.app.state.module_name,
         )
 
         # Save predictions to cache
@@ -304,11 +297,11 @@ def predict_bbox(
     if images_from_cache:
         logger.info(f"Loading predictions from cache for images: {', '.join(images_from_cache)}")
         # Load from cache
-        predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
+        predictions += [load_from_cache(im, request.app.state.n_bands, fs) for im in images_from_cache]
 
     # Produce mask with class IDs TODO : check if ok
     for lsi in predictions:
-        lsi.label = produce_mask(lsi.label, module_name)
+        lsi.label = produce_mask(lsi.label, request.app.state.module_name)
 
     preds_bbox = subset_predictions(predictions, bbox_geo)
 

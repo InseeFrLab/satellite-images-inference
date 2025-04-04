@@ -17,10 +17,13 @@ dependencies = [
     "pqdm>=0.2.0",
     "pyarrow>=19.0.1",
     "pydantic>=2.11.2",
+    "pytorch-lightning>=2.5.1",
     "requests>=2.32.3",
     "s3fs>=2025.3.2",
     "shapely>=2.1.0",
     "torch>=2.6.0",
+    "torchvision>=0.21.0",
+    "transformers>=4.50.3",
 ]
 authors = [
   {name="Thomas Faria", email="thomas.faria@insee.fr"}

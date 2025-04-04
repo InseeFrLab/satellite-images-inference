@@ -11,4 +11,7 @@ ADD . /app
 # install all the requirements
 RUN uv sync --frozen
 
-CMD ["uv", "run", "uvicorn", "app.main:app",  "--proxy-headers", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "3600"]
+# Expose port 5000
+EXPOSE 5000
+
+CMD ["uv", "run", "uvicorn", "app.main:app",  "--proxy-headers", "--host", "0.0.0.0", "--port", "5000", "--timeout-graceful-shutdown", "3600"]

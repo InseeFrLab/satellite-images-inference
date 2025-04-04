@@ -66,19 +66,18 @@ def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
         raise Exception(f"Failed to fetch model {model_name} version {model_version}: {str(error)}") from error
 
 
-def get_normalization_metrics(model: mlflow.pyfunc.PyFuncModel, n_bands: int):
+def get_normalization_metrics(model_params: Dict) -> tuple:
     """
     Retrieves normalization metrics (mean and standard deviation) for the model.
 
     Args:
-        model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
-        n_bands (int): Number of bands in the satellite image.
-
+        model_params (Dict): A dictionary containing model parameters.
     Returns:
         Tuple: A tuple containing normalization mean and standard deviation.
     """
-    normalization_mean = json.loads(mlflow.get_run(model.metadata.run_id).data.params["normalization_mean"])
-    normalization_std = json.loads(mlflow.get_run(model.metadata.run_id).data.params["normalization_std"])
+    normalization_mean = json.loads(model_params["normalization_mean"])
+    normalization_std = json.loads(model_params["normalization_std"])
+    n_bands = int(model_params["n_bands"])
 
     # Extract normalization mean and standard deviation for the number of bands
     normalization_mean, normalization_std = (

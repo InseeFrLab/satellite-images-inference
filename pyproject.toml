@@ -1,3 +1,56 @@
+[project]
+name = "Satellite-images-inference"
+version = "0.1.0"
+description = "This repository contains code for performing segmentation inference on satellite images using deep learning models. It includes the API code for the inference process"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "albumentations>=2.0.5",
+    "astrovision>=0.14.7",
+    "fastapi>=0.115.12",
+    "gdal>=3.10.2",
+    "geopandas>=1.0.1",
+    "logging>=0.4.9.6",
+    "mlflow>=2.21.3",
+    "numpy>=2.2.4",
+    "pandas>=2.2.3",
+    "pqdm>=0.2.0",
+    "pyarrow>=19.0.1",
+    "pydantic>=2.11.2",
+    "requests>=2.32.3",
+    "s3fs>=2025.3.2",
+    "shapely>=2.1.0",
+    "torch>=2.6.0",
+]
+authors = [
+  {name="Thomas Faria", email="thomas.faria@insee.fr"}
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.0",
+    "pre-commit>=4.2.0",
+]
+
 [tool.ruff]
-line-length = 100
-extend-include = ["*.ipynb"]
+line-length = 130
+
+[tool.uv]
+default-groups = ["dev"]
+
+
+[tool.uv.sources]
+gdal = [
+  { index = "gdal-wheels", marker = "sys_platform == 'linux'" },
+  { index = "geospatial_wheels", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "geospatial_wheels"
+url = "https://nathanjmcdougall.github.io/geospatial-wheels-index/"
+explicit = true
+
+[[tool.uv.index]]
+name = "gdal-wheels"
+url = "https://gitlab.com/api/v4/projects/61637378/packages/pypi/simple"
+explicit = true

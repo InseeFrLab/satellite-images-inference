@@ -61,7 +61,7 @@ def get_satellite_image(image_path: str, n_bands: int):
 
 fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
 
-list_filename = fs.glob("projet-slums-detection/data-raw/PLEIADES/**/**/*.jp2") + fs.glob(
+list_filename = fs.glob(
     "projet-slums-detection/data-raw/PLEIADES/**/**/*.tif"
 )
 

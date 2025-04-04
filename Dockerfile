@@ -2,11 +2,11 @@ FROM inseefrlab/onyxia-python-pytorch:py3.12.9
 
 ENV TIMEOUT=3600
 
-# set api as the current work dir
-WORKDIR /api
+# set app as the current work dir
+WORKDIR /app
 
 # copy the main code of fastapi
-COPY ./app /api/app
+ADD . /app
 
 # install all the requirements
 RUN uv sync --frozen

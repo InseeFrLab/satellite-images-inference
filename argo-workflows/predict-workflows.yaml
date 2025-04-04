@@ -14,29 +14,29 @@ spec:
     parameters:
       - name: predict-conf-list
         value: '[
-            {"DEP": "MAYOTTE", "YEAR": "2023"},
-            {"DEP": "MAYOTTE", "YEAR": "2022"},
-            {"DEP": "MAYOTTE", "YEAR": "2020"},
-            {"DEP": "MAYOTTE", "YEAR": "2019"},
-            {"DEP": "MAYOTTE", "YEAR": "2017"},
+          {"DEP": "MAYOTTE", "YEAR": "2023"},
+          {"DEP": "MAYOTTE", "YEAR": "2022"},
+          {"DEP": "MAYOTTE", "YEAR": "2020"},
+          {"DEP": "MAYOTTE", "YEAR": "2019"},
+          {"DEP": "MAYOTTE", "YEAR": "2017"},
 
-            {"DEP": "GUADELOUPE", "YEAR": "2022"},
-            {"DEP": "GUADELOUPE", "YEAR": "2020"},
-            {"DEP": "GUADELOUPE", "YEAR": "2019"},
-            {"DEP": "GUADELOUPE", "YEAR": "2018"},
+          {"DEP": "GUADELOUPE", "YEAR": "2022"},
+          {"DEP": "GUADELOUPE", "YEAR": "2020"},
+          {"DEP": "GUADELOUPE", "YEAR": "2019"},
+          {"DEP": "GUADELOUPE", "YEAR": "2018"},
 
-            {"DEP": "MARTINIQUE", "YEAR": "2022"},
-            {"DEP": "MARTINIQUE", "YEAR": "2018"},
+          {"DEP": "MARTINIQUE", "YEAR": "2022"},
+          {"DEP": "MARTINIQUE", "YEAR": "2018"},
 
-            {"DEP": "REUNION", "YEAR": "2023"},
-            {"DEP": "REUNION", "YEAR": "2022"},
+          {"DEP": "REUNION", "YEAR": "2023"},
+          {"DEP": "REUNION", "YEAR": "2022"},
 
-            {"DEP": "GUYANE", "YEAR": "2023"},
-            {"DEP": "GUYANE", "YEAR": "2022"},
+          {"DEP": "GUYANE", "YEAR": "2023"},
+          {"DEP": "GUYANE", "YEAR": "2022"},
 
-            {"DEP": "SAINT-MARTIN", "YEAR": "2024"}
+          {"DEP": "SAINT-MARTIN", "YEAR": "2024"}
 
-            ]'
+          ]'
 
   templates:
     - name: main
@@ -59,8 +59,8 @@ spec:
           - name: DEP
           - name: YEAR
       container:
-        image: inseefrlab/satellite-images-dev:v0.0.6
-        imagePullPolicy: Always
+        image: inseefrlab/onyxia-python-pytorch:py3.12.9
+        imagePullPolicy: IfNotPresent
         resources:
           requests:
             cpu: 3
@@ -70,8 +70,11 @@ spec:
             git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
             cd satellite-images-inference/ &&
 
+            # Install dependencies
+            uv sync &&
+
             # Make predictions
-            python -m src.make_predictions_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
+            uv run -m src.make_predictions_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
 
             # Fetch the JSON data and store model info in variables
             MODEL_INFO=$(curl -s 'https://satellite-images-inference.lab.sspcloud.fr/') &&

@@ -120,15 +120,11 @@ async def main(dep: str, year: int):
 
     # Retry failed clusters up to the maximum number of retries
     while failed_query and counter < max_retry:
-        urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_cluster"] * len(
-            failed_query
-        )
+        urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_cluster"] * len(failed_query)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             tasks = [
-                fetch(
-                    session, url, params={"year": f"{year}", "dep": f"{dep}", "cluster_id": cluster}
-                )
+                fetch(session, url, params={"year": f"{year}", "dep": f"{dep}", "cluster_id": cluster})
                 for url, cluster in zip(urls, failed_query)
             ]
             responses_retry = await tqdm.gather(*tasks)

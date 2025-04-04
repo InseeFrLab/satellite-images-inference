@@ -11,7 +11,7 @@ FTP_SERVER="ftp3.ign.fr"
 FTP_USER="INSEE"
 FTP_PASS="*********"
 
-lftp -e "open ftp://$FTP_SERVER; user $FTP_USER $FTP_PASS;" 
+lftp -e "open ftp://$FTP_SERVER; user $FTP_USER $FTP_PASS;"
 
 # Récuperer le dossier en local
 ls MAYOTTE/

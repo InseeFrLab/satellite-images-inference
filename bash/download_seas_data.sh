@@ -10,7 +10,7 @@ FTP_USER="insee973"
 FTP_PASS="********"
 
 IMAGE="DS_PHR1A_202306081414359_GU1_PX_W055N05_1008_01654-F-D.zip"
-lftp -e "set ftp:ssl-force true; set ssl:verify-certificate no; open ftp://$FTP_SERVER; user $FTP_USER $FTP_PASS; 
+lftp -e "set ftp:ssl-force true; set ssl:verify-certificate no; open ftp://$FTP_SERVER; user $FTP_USER $FTP_PASS;
 cd Arch-2024-042/guyane/2023/F/D
 
 mget $IMAGE
@@ -44,4 +44,3 @@ find . -type f -name "*.TIF" | while read -r file; do
 done
 
 mc cp -r $dest_dir/ s3/projet-slums-detection/data-raw/$dest_dir/
-

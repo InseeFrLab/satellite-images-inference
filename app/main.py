@@ -41,15 +41,7 @@ async def lifespan(app: FastAPI):
     Args:
         app (FastAPI): The FastAPI application.
     """
-    global \
-        logger, \
-        model, \
-        n_bands, \
-        tiles_size, \
-        augment_size, \
-        module_name, \
-        normalization_mean, \
-        normalization_std
+    global logger, model, n_bands, tiles_size, augment_size, module_name, normalization_mean, normalization_std
 
     gdal.UseExceptions()
     logger = configure_logger()
@@ -143,9 +135,7 @@ async def predict_image(image: str, polygons: bool = False) -> Dict:
 def predict_cluster(
     cluster_id: str,
     year: int = Query(2022, ge=2017, le=2025),
-    dep: str = Query(
-        "MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION|SAINT-MARTIN)$"
-    ),
+    dep: str = Query("MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION|SAINT-MARTIN)$"),
 ) -> Dict:
     """
     Predicts cluster for a given cluster ID, year, and department.
@@ -158,19 +148,13 @@ def predict_cluster(
     Returns:
         Dict: Response containing the predicted cluster.
     """
-    logger.info(
-        f"Predict cluster endpoint accessed with cluster_id: {cluster_id}, year: {year}, and department: {dep}"
-    )
+    logger.info(f"Predict cluster endpoint accessed with cluster_id: {cluster_id}, year: {year}, and department: {dep}")
 
     fs = get_file_system()
 
     # Get cluster file
     clusters = (
-        pq.ParquetDataset(
-            "projet-slums-detection/data-clusters", filesystem=fs, filters=[("dep", "=", dep)]
-        )
-        .read()
-        .to_pandas()
+        pq.ParquetDataset("projet-slums-detection/data-clusters", filesystem=fs, filters=[("dep", "=", dep)]).read().to_pandas()
     )
     clusters["geometry"] = gpd.GeoSeries.from_wkt(clusters["geometry"])
     clusters = gpd.GeoDataFrame(clusters, geometry="geometry", crs="EPSG:4326")
@@ -189,17 +173,11 @@ def predict_cluster(
 
     # Check if images are found in S3 bucket
     if not images:
-        logger.info(
-            f"""No images found for cluster_id: {cluster_id}, year: {year}, and department: {dep}"""
-        )
+        logger.info(f"""No images found for cluster_id: {cluster_id}, year: {year}, and department: {dep}""")
         return JSONResponse(
             content={
-                "predictions": gpd.GeoDataFrame(
-                    columns=["geometry"], crs=filename_table.crs
-                ).to_json(),
-                "statistics": gpd.GeoDataFrame(
-                    columns=["geometry"], crs=filename_table.crs
-                ).to_json(),
+                "predictions": gpd.GeoDataFrame(columns=["geometry"], crs=filename_table.crs).to_json(),
+                "statistics": gpd.GeoDataFrame(columns=["geometry"], crs=filename_table.crs).to_json(),
             }
         )
 
@@ -226,9 +204,7 @@ def predict_cluster(
                 np.save(f, pred.label)
 
     if images_from_cache:
-        logger.info(
-            f"""Loading predictions from cache for images: {", ".join(images_from_cache)}"""
-        )
+        logger.info(f"""Loading predictions from cache for images: {", ".join(images_from_cache)}""")
         # Load from cache
         predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
 
@@ -298,12 +274,8 @@ def predict_bbox(
         )
         return JSONResponse(
             content={
-                "predictions": gpd.GeoDataFrame(
-                    columns=["geometry"], crs=filename_table.crs
-                ).to_json(),
-                "statistics": gpd.GeoDataFrame(
-                    columns=["geometry"], crs=filename_table.crs
-                ).to_json(),
+                "predictions": gpd.GeoDataFrame(columns=["geometry"], crs=filename_table.crs).to_json(),
+                "statistics": gpd.GeoDataFrame(columns=["geometry"], crs=filename_table.crs).to_json(),
             }
         )
 
@@ -330,7 +302,7 @@ def predict_bbox(
                 np.save(f, pred.label)
 
     if images_from_cache:
-        logger.info(f"Loading predictions from cache for images: {", ".join(images_from_cache)}")
+        logger.info(f"Loading predictions from cache for images: {', '.join(images_from_cache)}")
         # Load from cache
         predictions += [load_from_cache(im, n_bands, fs) for im in images_from_cache]
 

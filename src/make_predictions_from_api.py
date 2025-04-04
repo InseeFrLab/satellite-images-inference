@@ -94,10 +94,7 @@ async def main(dep: str, year: int):
 
     # Create an asynchronous HTTP client session
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        tasks = [
-            fetch(session, url, params={"image": image, "polygons": "True"})
-            for url, image in zip(urls, images)
-        ]
+        tasks = [fetch(session, url, params={"image": image, "polygons": "True"}) for url, image in zip(urls, images)]
         responses = await tqdm.gather(*tasks)
 
     # Create a dictionary mapping images to their corresponding predictions
@@ -121,15 +118,10 @@ async def main(dep: str, year: int):
 
     # Retry failed images up to the maximum number of retries
     while failed_query and counter < max_retry:
-        urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(
-            failed_query
-        )
+        urls = ["https://satellite-images-inference.lab.sspcloud.fr/predict_image"] * len(failed_query)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            tasks = [
-                fetch(session, url, params={"image": image, "polygons": "True"})
-                for url, image in zip(urls, failed_query)
-            ]
+            tasks = [fetch(session, url, params={"image": image, "polygons": "True"}) for url, image in zip(urls, failed_query)]
             responses_retry = await tqdm.gather(*tasks)
 
             result_retry = {k: v for k, v in zip(failed_query, responses_retry)}

@@ -61,21 +61,13 @@ def get_satellite_image(image_path: str, n_bands: int):
 
 fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
 
-list_filename = fs.glob(
-    "projet-slums-detection/data-raw/PLEIADES/**/**/*.tif"
-)
+list_filename = fs.glob("projet-slums-detection/data-raw/PLEIADES/**/**/*.tif")
 
 current_filename_to_poly = (
-    pq.ParquetDataset(
-        "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/", filesystem=fs
-    )
-    .read()
-    .to_pandas()
+    pq.ParquetDataset("projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/", filesystem=fs).read().to_pandas()
 )
 
-list_missing_files = [
-    x for x in list_filename if x not in current_filename_to_poly.filename.to_list()
-]
+list_missing_files = [x for x in list_filename if x not in current_filename_to_poly.filename.to_list()]
 
 file_retrieved = []
 list_gpd = []

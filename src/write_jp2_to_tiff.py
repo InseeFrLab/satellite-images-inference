@@ -47,25 +47,19 @@ os.environ["CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE"] = "YES"
 fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
 
 parent = os.path.abspath("..")
-dossier_images_jp2_local = parent+"/2025/MOSA"  # a modifier
+dossier_images_jp2_local = parent + "/2025/MOSA"  # a modifier
 destination_s3 = "MAYOTTE/2025"  # a modifier
 
-list_jp2 = [
-    file
-    for file in os.listdir(dossier_images_jp2_local)
-    if file.endswith(".jp2")
-]
+list_jp2 = [file for file in os.listdir(dossier_images_jp2_local) if file.endswith(".jp2")]
 
 list_converted = []
 
 while len(list_jp2) > len(list_converted):
     file_missing_input = [
-        f"{dossier_images_jp2_local}/{file}"
-        for file in list_jp2
-        if file.replace(".jp2", ".tif") not in list_converted
+        f"{dossier_images_jp2_local}/{file}" for file in list_jp2 if file.replace(".jp2", ".tif") not in list_converted
     ]
     file_missing_output = [
-        f"projet-slums-detection/data-raw/PLEIADES/{destination_s3}/{file.replace(".jp2", ".tif")}"
+        f"projet-slums-detection/data-raw/PLEIADES/{destination_s3}/{file.replace('.jp2', '.tif')}"
         for file in list_jp2
         if file.replace(".jp2", ".tif") not in list_converted
     ]
@@ -75,4 +69,4 @@ while len(list_jp2) > len(list_converted):
             continue
         else:
             if result[i]["result"] != "FAILED":
-                list_converted.append(result[i]["file"].split('/')[-1])
+                list_converted.append(result[i]["file"].split("/")[-1])

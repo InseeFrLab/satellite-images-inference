@@ -10,9 +10,7 @@ from shapely.ops import unary_union
 from tqdm import tqdm
 
 
-def check_line_intersection(
-    poly1: Union[LineString, MultiLineString], poly2: Union[LineString, MultiLineString]
-) -> bool:
+def check_line_intersection(poly1: Union[LineString, MultiLineString], poly2: Union[LineString, MultiLineString]) -> bool:
     """
     Check if two lines intersect.
 
@@ -71,8 +69,7 @@ def clean_prediction(gdf_original: gpd.GeoDataFrame, buffer_distance: int = 3) -
         touching_pairs.update(
             (min(idx, neighbor_idx), max(idx, neighbor_idx))
             for neighbor_idx in neighbors_indices
-            if neighbor_idx != idx
-            and check_line_intersection(poly.geometry, gdf.iloc[neighbor_idx].geometry)
+            if neighbor_idx != idx and check_line_intersection(poly.geometry, gdf.iloc[neighbor_idx].geometry)
         )
 
     # Create a connected graph

@@ -63,9 +63,7 @@ def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
         model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
         return model
     except Exception as error:
-        raise Exception(
-            f"Failed to fetch model {model_name} version {model_version}: {str(error)}"
-        ) from error
+        raise Exception(f"Failed to fetch model {model_name} version {model_version}: {str(error)}") from error
 
 
 def get_normalization_metrics(model: mlflow.pyfunc.PyFuncModel, n_bands: int):
@@ -79,12 +77,8 @@ def get_normalization_metrics(model: mlflow.pyfunc.PyFuncModel, n_bands: int):
     Returns:
         Tuple: A tuple containing normalization mean and standard deviation.
     """
-    normalization_mean = json.loads(
-        mlflow.get_run(model.metadata.run_id).data.params["normalization_mean"]
-    )
-    normalization_std = json.loads(
-        mlflow.get_run(model.metadata.run_id).data.params["normalization_std"]
-    )
+    normalization_mean = json.loads(mlflow.get_run(model.metadata.run_id).data.params["normalization_mean"])
+    normalization_std = json.loads(mlflow.get_run(model.metadata.run_id).data.params["normalization_std"])
 
     # Extract normalization mean and standard deviation for the number of bands
     normalization_mean, normalization_std = (
@@ -179,9 +173,7 @@ def preprocess_image(
         torch.Tensor: Normalized and preprocessed image tensor.
     """
     # Obtain transformation pipeline
-    transform = get_transform(
-        model, tiles_size, augment_size, n_bands, normalization_mean, normalization_std
-    )
+    transform = get_transform(model, tiles_size, augment_size, n_bands, normalization_mean, normalization_std)
 
     # Deal when images to pred have more channels than images used during training
     if len(normalization_mean) != image.array.shape[0]:
@@ -393,9 +385,7 @@ def predict(
 
         elif si.array.shape[1] > tiles_size:
             if si.array.shape[1] % tiles_size != 0:
-                raise ValueError(
-                    "The dimension of the image must be divisible by the tiles size used during training."
-                )
+                raise ValueError("The dimension of the image must be divisible by the tiles size used during training.")
             else:
                 si_splitted = si.split(tiles_size)
 
@@ -415,9 +405,7 @@ def predict(
 
                 lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
         else:
-            raise ValueError(
-                "The dimension of the image should be equal to or greater than the tile size used during training."
-            )
+            raise ValueError("The dimension of the image should be equal to or greater than the tile size used during training.")
         return lsi
 
     # Check if input is a str
@@ -449,14 +437,10 @@ def subset_predictions(
 
     # Ensure the geometries are valid
     if not all([geom.is_valid for geom in roi.geometry]):
-        roi["geometry"] = roi["geometry"].apply(
-            lambda geom: make_valid(geom) if not geom.is_valid else geom
-        )
+        roi["geometry"] = roi["geometry"].apply(lambda geom: make_valid(geom) if not geom.is_valid else geom)
 
     if not all([geom.is_valid for geom in preds.geometry]):
-        preds["geometry"] = preds["geometry"].apply(
-            lambda geom: make_valid(geom) if not geom.is_valid else geom
-        )
+        preds["geometry"] = preds["geometry"].apply(lambda geom: make_valid(geom) if not geom.is_valid else geom)
 
     # Union of the roi geometries
     roi_union = unary_union(roi.geometry)
@@ -546,14 +530,10 @@ def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str
         original_mask = pred.label
         area_cluster += (polygon_mask.sum() * RESOLUTION**2) / 1e6  # in km²
         # TODO: Assume 1 is label for buildings
-        area_building += (
-            ((original_mask == 1) * polygon_mask).sum() * RESOLUTION**2
-        ) / 1e6  # in km²
+        area_building += (((original_mask == 1) * polygon_mask).sum() * RESOLUTION**2) / 1e6  # in km²
 
     pct_building = area_building / area_cluster * 100
-    roi = roi.assign(
-        area_cluster=area_cluster, area_building=area_building, pct_building=pct_building
-    )
+    roi = roi.assign(area_cluster=area_cluster, area_building=area_building, pct_building=pct_building)
 
     return roi.reset_index(drop=True)
 
@@ -568,21 +548,15 @@ def get_cache_path(image: str) -> str:
     Returns:
         str: The cache path.
     """
-    assert (
-        "MLFLOW_MODEL_NAME" in os.environ
-    ), "Please set the MLFLOW_MODEL_NAME environment variable."
-    assert (
-        "MLFLOW_MODEL_VERSION" in os.environ
-    ), "Please set the MLFLOW_MODEL_VERSION environment variable."
+    assert "MLFLOW_MODEL_NAME" in os.environ, "Please set the MLFLOW_MODEL_NAME environment variable."
+    assert "MLFLOW_MODEL_VERSION" in os.environ, "Please set the MLFLOW_MODEL_VERSION environment variable."
 
     cache_path = os.path.dirname(image.replace(image.split("/")[1], "cache-predictions"))
     image_name = os.path.splitext(os.path.basename(image))[0]
-    return f"{cache_path}/{os.getenv("MLFLOW_MODEL_NAME")}/{os.getenv("MLFLOW_MODEL_VERSION")}/{image_name}.npy"
+    return f"{cache_path}/{os.getenv('MLFLOW_MODEL_NAME')}/{os.getenv('MLFLOW_MODEL_VERSION')}/{image_name}.npy"
 
 
-def load_from_cache(
-    image: str, n_bands: list[int], filesystem: S3FileSystem
-) -> SegmentationLabeledSatelliteImage:
+def load_from_cache(image: str, n_bands: list[int], filesystem: S3FileSystem) -> SegmentationLabeledSatelliteImage:
     """
     Load the image and mask from the cache.
 

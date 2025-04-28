@@ -1,0 +1,78 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: constructions-destructions-
+spec:
+  serviceAccountName: workflow
+  volumes:
+    - name: dshm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 16Gi
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: cons-des-list
+        value: '[
+          {"DEP": "MAYOTTE"},
+          {"DEP": "GUADELOUPE"},
+          {"DEP": "MARTINIQUE"},
+          {"DEP": "REUNION"},
+          {"DEP": "GUYANE"},
+          {"DEP": "SAINT-MARTIN"}
+          ]'
+
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: run-cons-des-with-params
+            template: run-cons-des-wt
+            arguments:
+              parameters:
+                - name: DEP
+                  value: "{{item.DEP}}"
+            # Pass the inputs to the task using "withParam"
+            withParam: "{{workflow.parameters.cons-des-list}}"
+
+    - name: run-cons-des-wt
+      inputs:
+        parameters:
+          - name: DEP
+      container:
+        image: inseefrlab/onyxia-python-pytorch:py3.12.9
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 3
+        command: ["/bin/bash", -c]
+        args:
+          - |
+            git clone https://github.com/InseeFrLab/satellite-images-inference.git &&
+            cd satellite-images-inference/ &&
+
+            # Install dependencies
+            uv sync &&
+
+            # Make predictions
+            uv run -m src.constructions_destructions --dep {{inputs.parameters.DEP}}
+
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+        env:
+          # env var for s3 connexion
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: accessKey
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-s3-creds
+                key: secretKey
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+          - name: AWS_S3_ENDPOINT
+            value: minio.lab.sspcloud.fr

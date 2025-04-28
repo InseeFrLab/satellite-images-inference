@@ -6,7 +6,7 @@ import requests
 import argparse
 import time
 
-from make_predictions_from_api import save_geopackage_to_s3
+from src.make_predictions_from_api import save_geopackage_to_s3
 from app.utils import get_file_system
 
 

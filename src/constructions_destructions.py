@@ -13,25 +13,6 @@ from src.make_predictions_from_api import save_geopackage_to_s3
 from app.utils import get_file_system
 
 
-def filtre_compacite(table, seuil_compacite=0.08):
-    table["compacite"] = (4 * math.pi * table.area) / (table.length**2)
-    table_filtree = table[table["compacite"] > seuil_compacite]
-    return table_filtree
-
-
-def filtre_taille(table, seuil_taille=5):
-    table = table.copy()
-    table["aire_bati"] = table.area
-    if seuil_taille != 0:
-        table_triee = table.sort_values(by="aire_bati")
-        decile_seuil = np.percentile(table_triee["aire_bati"], seuil_taille)
-        polygone_decile = table_triee[table_triee["aire_bati"] <= decile_seuil].iloc[-1]
-        table_filtree = table[table["aire_bati"] > polygone_decile["aire_bati"]]
-    else:
-        table_filtree = table
-    return table_filtree
-
-
 def get_build_evol(
     dep: str, year: int, model_name: str, model_version: str, fs
 ) -> pd.DataFrame:
@@ -60,7 +41,7 @@ def get_build_evol(
         destructions_list = []
         for year_start in years_before:
 
-            path_start = f"{global_path}{str(year)}{pattern}"
+            path_start = f"{global_path}{str(year_start)}{pattern}"
             data_start = gpd.read_parquet(path_start, filesystem=fs)
             data_start = data_start[data_start['label'] == 1][['geometry']].copy()
             data_start["year"] = year_start
@@ -69,7 +50,22 @@ def get_build_evol(
             data_start = data_start[data_start.is_valid]
             data_end = data_end[data_end.is_valid]
 
-            # todo : appliquer des filtres et/ou améliorer la méthode pour récupérer les constructions/destructions
+            # # todo : appliquer des filtres et/ou améliorer la méthode pour récupérer les constructions/destructions
+            # sym_diff = gpd.overlay(data_start, data_end, how="symmetric_difference")
+            # index = pd.RangeIndex(stop=len(sym_diff))
+            # sym_diff = gpd.GeoDataFrame(sym_diff, crs="EPSG:4471", index=index)
+
+            # polygones_commun = gpd.overlay(data_start, data_end, how="intersection")
+            # resultat = sym_diff[~sym_diff.geometry.isin(polygones_commun.geometry)]
+
+            # resultat_start = gpd.sjoin(resultat, data_start, how="left", predicate="within")
+            # destructions = resultat_start[resultat_start.index_right.isna()]
+            # destructions = destructions.loc[:, resultat.columns]
+
+            # resultat_end = gpd.sjoin(resultat, data_end, how="left", predicate="within")
+            # constructions = resultat_end[resultat_end.index_right.isna()]
+            # constructions = constructions.loc[:, resultat.columns]
+
             constructions = overlay(data_end, data_start, how='difference')
             destructions = overlay(data_start, data_end, how='difference')
 

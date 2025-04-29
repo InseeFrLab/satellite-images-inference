@@ -61,6 +61,7 @@ spec:
       inputs:
         parameters:
           - name: DEP
+          - name: YEAR
       container:
         image: inseefrlab/onyxia-python-pytorch:py3.12.9
         imagePullPolicy: IfNotPresent

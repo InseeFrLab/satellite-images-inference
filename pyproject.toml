@@ -24,6 +24,7 @@ dependencies = [
     "torch>=2.6.0",
     "torchvision>=0.21.0",
     "transformers>=4.50.3",
+    "lxml>=5.4.0",
 ]
 authors = [
   {name="Thomas Faria", email="thomas.faria@insee.fr"}

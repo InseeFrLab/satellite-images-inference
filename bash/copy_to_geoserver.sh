@@ -49,3 +49,15 @@ kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
 echo "Giving permissions..."
 kubectl exec ${nom_pod} -- chmod -R a+rw /opt/geoserver/data_dir
 echo "Script completed successfully!"
+
+# Copy build evolutions from S3 to the GeoServer directly
+echo "Copying evolutions..."
+kubectl exec ${nom_pod} -c geoserver -- /bin/bash -c "\
+    mc cp s3/projet-slums-detection/data-prediction/PLEIADES/${departement}/${annee}/${model}/${version}/evolutions_bati.gpkg \
+        /opt/geoserver/data_dir/PREDICTIONS/PLEIADES/${departement}/${annee}/${model}/${version}/evolutions_bati.gpkg && \
+    echo 'Evolutions file successfully copied.'"
+
+echo "Giving permissions..."
+kubectl exec ${nom_pod} -- chmod -R a+rw /opt/geoserver/data_dir
+echo "Script completed successfully!"
+

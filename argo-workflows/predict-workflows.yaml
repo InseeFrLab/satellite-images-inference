@@ -75,6 +75,8 @@ spec:
 
             # Make predictions
             uv run -m src.make_predictions_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
+            # Make evolutions
+            uv run -m src.constructions_destructions --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
 
             # Fetch the JSON data and store model info in variables
             MODEL_INFO=$(curl -s 'https://satellite-images-inference.lab.sspcloud.fr/') &&
@@ -82,7 +84,7 @@ spec:
             MODEL_VERSION=$(echo $MODEL_INFO | jq -r '.model_version') &&
             POD_NAME=geoserver-pod-0 &&
 
-            # Copy predictions to geoserver
+            # Copy images, predictions and evolutions to geoserver
             ./bash/copy_to_geoserver.sh {{inputs.parameters.DEP}} {{inputs.parameters.YEAR}} $MODEL_NAME $MODEL_VERSION $POD_NAME
         volumeMounts:
           - mountPath: /dev/shm

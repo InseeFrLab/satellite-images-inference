@@ -77,7 +77,7 @@ spec:
             # Install dependencies
             uv sync &&
 
-            # Make predictions
+            # Make evolutions
             uv run -m src.constructions_destructions --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
 
             # Fetch the JSON data and store model info in variables
@@ -86,7 +86,7 @@ spec:
             MODEL_VERSION=$(echo $MODEL_INFO | jq -r '.model_version') &&
             POD_NAME=geoserver-pod-0 &&
 
-            # Copy predictions to geoserver
+            # Copy evolutions to geoserver
             ./bash/copy_to_geoserver2.sh {{inputs.parameters.DEP}} {{inputs.parameters.YEAR}} $MODEL_NAME $MODEL_VERSION $POD_NAME
 
         volumeMounts:

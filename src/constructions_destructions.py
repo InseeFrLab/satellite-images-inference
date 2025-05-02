@@ -76,8 +76,8 @@ def get_build_evol(
             constructions = filtre_compacite(constructions)
             destructions = filtre_compacite(destructions)
 
-            constructions["geometry"] = constructions.geometry.buffer(2.5).buffer(-2.5)
-            destructions["geometry"] = destructions.geometry.buffer(2.5).buffer(-2.5)
+            # constructions["geometry"] = constructions.geometry.buffer(2.5).buffer(-2.5)
+            # destructions["geometry"] = destructions.geometry.buffer(2.5).buffer(-2.5)
 
             # Constructions
             constructions['year_start'] = year_start

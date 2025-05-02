@@ -20,13 +20,22 @@ def filtre_compacite(table: gpd.GeoDataFrame, seuil_compacite: str = 0.08) -> gp
 
 
 def get_evolutions(gdf1: gpd.GeoDataFrame, gdf2: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    gdf2_union = unary_union(gdf2.geometry)
+    sym_diff = gpd.overlay(gdf1, gdf2, how="symmetric_difference")
+    index = pd.RangeIndex(stop=len(sym_diff))
+    sym_diff = gpd.GeoDataFrame(sym_diff, crs="EPSG:4471", index=index)
 
-    gdf1_diff = gdf1.copy()
-    gdf1_diff["geometry"] = gdf1.geometry.difference(gdf2_union)
+    polygones_commun = gpd.overlay(gdf1, gdf2, how="intersection")
+    resultat = sym_diff[~sym_diff.geometry.isin(polygones_commun.geometry)]
 
-    gdf1_diff = gdf1_diff[~gdf1_diff.is_empty]
-    return gdf1_diff
+    resultat_1 = gpd.sjoin(resultat, gdf1, how="left", op="within")
+    suppression = resultat_1[resultat_1.index_right.isna()]
+    suppression = suppression.loc[:, resultat.columns]
+
+    resultat_2 = gpd.sjoin(resultat, gdf2, how="left", op="within")
+    creation = resultat_2[resultat_2.index_right.isna()]
+    creation = creation.loc[:, resultat.columns]
+
+    return creation, suppression
 
 
 def get_predictions(
@@ -70,14 +79,13 @@ def get_build_evol(
 
             # todo : améliorer la méthode pour filtrer les constructions/destructions
 
-            constructions = get_evolutions(data_end, data_start)
-            destructions = get_evolutions(data_start, data_end)
+            constructions, destructions = get_evolutions(data_start, data_end)
 
             constructions = filtre_compacite(constructions)
             destructions = filtre_compacite(destructions)
 
-            # constructions["geometry"] = constructions.geometry.buffer(2.5).buffer(-2.5)
-            # destructions["geometry"] = destructions.geometry.buffer(2.5).buffer(-2.5)
+            constructions["geometry"] = constructions.geometry.buffer(2.5).buffer(-2.5)
+            destructions["geometry"] = destructions.geometry.buffer(2.5).buffer(-2.5)
 
             # Constructions
             constructions['year_start'] = year_start

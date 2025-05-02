@@ -22,7 +22,7 @@ def filtre_compacite(table: gpd.GeoDataFrame, seuil_compacite: str = 0.08) -> gp
 def get_evolutions(gdf1: gpd.GeoDataFrame, gdf2: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     sym_diff = gpd.overlay(gdf1, gdf2, how="symmetric_difference")
     index = pd.RangeIndex(stop=len(sym_diff))
-    sym_diff = gpd.GeoDataFrame(sym_diff, crs="EPSG:4471", index=index)
+    sym_diff = gpd.GeoDataFrame(sym_diff, crs=gdf1.crs, index=index)
 
     polygones_commun = gpd.overlay(gdf1, gdf2, how="intersection")
     resultat = sym_diff[~sym_diff.geometry.isin(polygones_commun.geometry)]

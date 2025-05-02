@@ -27,11 +27,11 @@ def get_evolutions(gdf1: gpd.GeoDataFrame, gdf2: gpd.GeoDataFrame) -> gpd.GeoDat
     polygones_commun = gpd.overlay(gdf1, gdf2, how="intersection")
     resultat = sym_diff[~sym_diff.geometry.isin(polygones_commun.geometry)]
 
-    resultat_1 = gpd.sjoin(resultat, gdf1, how="left", op="within")
+    resultat_1 = gpd.sjoin(resultat, gdf1, how="left", predicate="within")
     suppression = resultat_1[resultat_1.index_right.isna()]
     suppression = suppression.loc[:, resultat.columns]
 
-    resultat_2 = gpd.sjoin(resultat, gdf2, how="left", op="within")
+    resultat_2 = gpd.sjoin(resultat, gdf2, how="left", predicate="within")
     creation = resultat_2[resultat_2.index_right.isna()]
     creation = creation.loc[:, resultat.columns]
 

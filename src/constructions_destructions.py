@@ -4,10 +4,6 @@ import requests
 import argparse
 import time
 import math
-import numpy as np
-from lxml import etree
-import io
-from shapely.ops import unary_union
 
 from src.make_predictions_from_api import save_geopackage_to_s3
 from app.utils import get_file_system
@@ -109,96 +105,6 @@ def get_build_evol(
             f"{return_path}evolutions_bati.gpkg",
             filesystem=fs,
         )
-        # generate_sld(years_before, fs, f"{return_path}evolution_style.sld")
-
-
-# def ogc_element(ns, tag):
-#     return etree.Element(f"{{{ns['ogc']}}}{tag}")
-
-
-# def create_rule(ns, year, evolution, color):
-#     rule = etree.Element("Rule")
-
-#     name = etree.Element("Name")
-#     name.text = f"{year}_{evolution}"
-#     rule.append(name)
-
-#     filter_elem = ogc_element(ns, "Filter")
-#     and_elem = ogc_element(ns, "And")
-
-#     year_eq = ogc_element(ns, "PropertyIsEqualTo")
-#     year_prop = ogc_element(ns, "PropertyName")
-#     year_prop.text = "year_start"
-#     year_val = ogc_element(ns, "Literal")
-#     year_val.text = str(year)
-#     year_eq.extend([year_prop, year_val])
-
-#     evo_eq = ogc_element(ns, "PropertyIsEqualTo")
-#     evo_prop = ogc_element(ns, "PropertyName")
-#     evo_prop.text = "evolution"
-#     evo_val = ogc_element(ns, "Literal")
-#     evo_val.text = evolution
-#     evo_eq.extend([evo_prop, evo_val])
-
-#     and_elem.extend([year_eq, evo_eq])
-#     filter_elem.append(and_elem)
-#     rule.append(filter_elem)
-
-#     polygon_sym = etree.Element("PolygonSymbolizer")
-#     fill = etree.Element("Fill")
-#     css_color = etree.Element("CssParameter", name="fill")
-#     css_color.text = color
-#     css_opacity = etree.Element("CssParameter", name="fill-opacity")
-#     css_opacity.text = "0.5"
-#     fill.extend([css_color, css_opacity])
-#     polygon_sym.append(fill)
-#     rule.append(polygon_sym)
-
-#     return rule
-
-
-# def generate_sld(years, fs, output_path):
-#     ns = {
-#         "ogc": "http://www.opengis.net/ogc",
-#         "xlink": "http://www.w3.org/1999/xlink",
-#         "xsi": "http://www.w3.org/2001/XMLSchema-instance"
-#     }
-
-#     sld = etree.Element(
-#         "StyledLayerDescriptor",
-#         nsmap={None: "http://www.opengis.net/sld", **ns},
-#         version="1.0.0",
-#         attrib={
-#             "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation":
-#             "http://www.opengis.net/sld StyledLayerDescriptor.xsd"
-#         }
-#     )
-
-#     named_layer = etree.SubElement(sld, "NamedLayer")
-#     layer_name = etree.SubElement(named_layer, "Name")
-#     layer_name.text = "evolution_by_year"
-
-#     user_style = etree.SubElement(named_layer, "UserStyle")
-#     title = etree.SubElement(user_style, "Title")
-#     title.text = "Évolution par année (construction/destruction)"
-
-#     feature_type_style = etree.SubElement(user_style, "FeatureTypeStyle")
-
-#     # Règles par année
-#     for year in years:
-#         feature_type_style.append(create_rule(ns, year, "construction", "#00cc44"))
-#         feature_type_style.append(create_rule(ns, year, "destruction", "#cc0033"))
-
-#     tree = etree.ElementTree(sld)
-#     buffer = io.BytesIO()
-#     tree.write(buffer, encoding="UTF-8", xml_declaration=True, pretty_print=True)
-#     buffer.seek(0)
-
-#     # Écriture sur S3
-#     with fs.open(output_path, 'wb') as f:
-#         f.write(buffer.read())
-
-#     print(f"✅ SLD généré avec succès : {output_path}")
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ def get_evolutions(gdf1: gpd.GeoDataFrame, gdf2: gpd.GeoDataFrame) -> gpd.GeoDat
     resultat = sym_diff[~sym_diff.geometry.isin(polygones_commun.geometry)]
 
     resultat_1 = gpd.sjoin(resultat, gdf1, how="left", predicate="within")
-    construction = construction[resultat_1.index_right.isna()]
+    construction = resultat_1[resultat_1.index_right.isna()]
     construction = construction.loc[:, resultat.columns]
 
     resultat_2 = gpd.sjoin(resultat, gdf2, how="left", predicate="within")

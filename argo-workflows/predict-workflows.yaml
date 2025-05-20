@@ -73,6 +73,9 @@ spec:
             # Install dependencies
             uv sync &&
 
+            # Define a env var for GDAL
+            export PROJ_LIB=$(uv run python -c "from osgeo import __file__ as f; import os; print(os.path.join(os.path.dirname(f), 'data', 'proj'))")
+
             # Make predictions
             uv run -m src.make_predictions_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
             # Make evolutions

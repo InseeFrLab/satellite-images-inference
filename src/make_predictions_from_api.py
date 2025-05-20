@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import os
 import tempfile
+from datetime import datetime
 
 import aiohttp
 import geopandas as gpd
@@ -164,7 +165,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--year",
         type=int,
-        choices=[2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
+        choices=range(2017, datetime.now().year + 2),
         metavar="N",
         default=2020,
         help="Year of the dataset to make predictions on",

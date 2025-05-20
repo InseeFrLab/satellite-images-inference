@@ -6,6 +6,7 @@ import gc
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Dict
 
 import geopandas as gpd
@@ -126,7 +127,7 @@ async def predict_image(request: Request, image: str, polygons: bool = False) ->
 def predict_cluster(
     request: Request,
     cluster_id: str,
-    year: int = Query(2022, ge=2017, le=2025),
+    year: int = Query(2022, ge=2017, le=datetime.now().year + 1),
     dep: str = Query("MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION|SAINT-MARTIN)$"),
 ) -> Dict:
     """

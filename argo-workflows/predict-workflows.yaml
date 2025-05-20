@@ -78,6 +78,8 @@ spec:
 
             # Make predictions
             uv run -m src.make_predictions_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
+            # Make cluster statistics
+            uv run -m src.make_statistics_from_api --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
             # Make evolutions
             uv run -m src.constructions_destructions --dep {{inputs.parameters.DEP}} --year {{inputs.parameters.YEAR}} &&
 

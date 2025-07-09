@@ -8,13 +8,14 @@ sudo apt-get install p7zip-full
 
 # FTP server details
 FTP_SERVER="ftp3.ign.fr"
-FTP_USER="INSEE"
-FTP_PASS="*********"
+FTP_USER="xxx"
+FTP_PASS="xxx"
 
 lftp -e "open ftp://$FTP_SERVER; user $FTP_USER $FTP_PASS;"
 
 # Récuperer le dossier en local
-ls MAYOTTE/
+ls 
+cd MAYOTTE/
 mirror 2025
 
 # Convertir les images en TIFF pour ensuite les stocker sur le s3 avec le code write_jp2_to_tiff.py

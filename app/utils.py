@@ -112,7 +112,6 @@ def get_satellite_image(image_path: str, n_bands: int):
 
 
 def get_transform(
-    model: mlflow.pyfunc.PyFuncModel,
     tiles_size: int,
     augment_size: int,
     n_bands: int,
@@ -123,7 +122,6 @@ def get_transform(
     Retrieves the transformation pipeline for image preprocessing.
 
     Args:
-        model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
         tiles_size (int): Size of the satellite image.
         augment_size (int): .
         n_bands: (int): .
@@ -153,7 +151,6 @@ def get_transform(
 
 
 def preprocess_image(
-    model: mlflow.pyfunc.PyFuncModel,
     image: SatelliteImage,
     tiles_size: int,
     augment_size: int,
@@ -173,7 +170,7 @@ def preprocess_image(
         torch.Tensor: Normalized and preprocessed image tensor.
     """
     # Obtain transformation pipeline
-    transform = get_transform(model, tiles_size, augment_size, n_bands, normalization_mean, normalization_std)
+    transform = get_transform(tiles_size, augment_size, n_bands, normalization_mean, normalization_std)
 
     # Deal when images to pred have more channels than images used during training
     if len(normalization_mean) != image.array.shape[0]:

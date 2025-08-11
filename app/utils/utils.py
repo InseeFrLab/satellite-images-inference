@@ -8,8 +8,6 @@ import tempfile
 from contextlib import contextmanager
 from typing import Dict, List
 
-import albumentations as A
-import cv2
 import geopandas as gpd
 import mlflow
 import numpy as np
@@ -17,8 +15,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import rasterio
 import torch
-from albumentations.pytorch.transforms import ToTensorV2
-from astrovision.data import SatelliteImage, SegmentationLabeledSatelliteImage
+from astrovision.data import SegmentationLabeledSatelliteImage
 from astrovision.plot import make_mosaic
 from rasterio.features import rasterize, shapes
 from s3fs import S3FileSystem
@@ -28,44 +25,11 @@ from shapely.ops import unary_union
 from tqdm import tqdm
 
 from app.logger_config import configure_logger
+from app.utils.data import get_file_system, get_satellite_image
+from app.utils.preprocess_image import get_transform
+from app.utils.split_and_normalize import get_normalized_sis
 
 logger = configure_logger()
-
-
-def get_file_system() -> S3FileSystem:
-    """
-    Return the s3 file system.
-    """
-    return S3FileSystem(
-        client_kwargs={"endpoint_url": f"https://{os.environ['AWS_S3_ENDPOINT']}"},
-        key=os.environ["AWS_ACCESS_KEY_ID"],
-        secret=os.environ["AWS_SECRET_ACCESS_KEY"],
-        token=None,
-    )
-
-
-def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
-    """
-    This function fetches a trained machine learning model from the MLflow
-    model registry based on the specified model name and version.
-
-    Args:
-        model_name (str): The name of the model to fetch from the model
-        registry.
-        model_version (str): The version of the model to fetch from the model
-        registry.
-    Returns:
-        model (mlflow.pyfunc.PyFuncModel): The loaded machine learning model.
-    Raises:
-        Exception: If the model fetching fails, an exception is raised with an
-        error message.
-    """
-
-    try:
-        model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
-        return model
-    except Exception as error:
-        raise Exception(f"Failed to fetch model {model_name} version {model_version}: {str(error)}") from error
 
 
 def get_normalization_metrics(model_params: Dict) -> tuple:
@@ -88,99 +52,6 @@ def get_normalization_metrics(model_params: Dict) -> tuple:
     )
 
     return (normalization_mean, normalization_std)
-
-
-def get_satellite_image(image_path: str, n_bands: int):
-    """
-    Retrieves a satellite image specified by its path.
-
-    Args:
-        image_path (str): Path to the satellite image.
-        n_bands (int): Number of bands in the satellite image.
-
-    Returns:
-        SatelliteImage: An object representing the satellite image.
-    """
-
-    # Load satellite image using the specified path and number of bands
-    si = SatelliteImage.from_raster(
-        file_path=f"/vsis3/{image_path}",
-        dep=None,
-        date=None,
-        n_bands=n_bands,
-    )
-    return si
-
-
-def get_transform(
-    tiles_size: int,
-    augment_size: int,
-    n_bands: int,
-    normalization_mean: List[float],
-    normalization_std: List[float],
-):
-    """
-    Retrieves the transformation pipeline for image preprocessing.
-
-    Args:
-        tiles_size (int): Size of the satellite image.
-        augment_size (int): .
-        n_bands: (int): .
-        normalization_mean List[float]: .
-        normalization_std List[float]: .
-
-    Returns:
-        albumentations.Compose: A composition of image transformations.
-    """
-    # Define the transformation pipeline
-    transform_list = [
-        A.Normalize(
-            max_pixel_value=1.0,
-            mean=normalization_mean,
-            std=normalization_std,
-        ),
-        ToTensorV2(),
-    ]
-
-    # Add resizing transformation if augment size is different from tiles size
-    if augment_size != tiles_size:
-        transform_list.insert(0, A.Resize(augment_size, augment_size))
-
-    transform = A.Compose(transform_list)
-
-    return transform
-
-
-def preprocess_image(
-    image: SatelliteImage,
-    tiles_size: int,
-    augment_size: int,
-    n_bands: int,
-    normalization_mean: List[float],
-    normalization_std: List[float],
-):
-    """
-    Preprocesses a satellite image using the specified model.
-
-    Args:
-        model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
-        image (SatelliteImage): SatelliteImage object representing the input image.
-        tiles_size (int): Size of the satellite image.
-        augment_size (int): .
-    Returns:
-        torch.Tensor: Normalized and preprocessed image tensor.
-    """
-    # Obtain transformation pipeline
-    transform = get_transform(tiles_size, augment_size, n_bands, normalization_mean, normalization_std)
-
-    # Deal when images to pred have more channels than images used during training
-    if len(normalization_mean) != image.array.shape[0]:
-        image.array = image.array[: len(normalization_mean)]
-
-    # Apply transformation to image
-    normalized_si = transform(image=np.transpose(image.array, [1, 2, 0]))["image"].unsqueeze(dim=0)
-
-    return normalized_si
 
 
 def produce_mask(
@@ -291,7 +162,7 @@ def predict_batch(batch, model, tiles_size):
     return prediction
 
 
-def make_prediction(
+def make_batched_prediction(
     normalized_si: torch.Tensor,
     model: mlflow.pyfunc.PyFuncModel,
     tiles_size: int,
@@ -337,19 +208,23 @@ def predict(
     n_bands: int,
     normalization_mean: List[float],
     normalization_std: List[float],
+    sliding_window_split: bool = False,
+    overlap: int = None,
+    batch_size: int = 75,
 ):
     """
     Predicts mask for a given satellite image or a given list of given satellite image.
 
     Args:
-        image (str or list): Path to the satellite image(s).
-        model (mlflow.pyfunc.PyFuncModel): MLflow PyFuncModel object representing the model.
-        tiles_size (int): Size of the satellite image.
-        augment_size (int): Size of the augmentation.
-        n_bands (int): Number of bands in the satellite image.
-        normalization_mean (List[float]): List of mean values for normalization.
-        normalization_std (List[float]): List of standard deviation values for normalization.
-        module_name (str): Name of the module used for training.
+        images (str | list[str]): The path to the satellite image or a list of paths.
+        model (mlflow.pyfunc.PyFuncModel): The MLflow PyFuncModel object representing the model.
+        tiles_size (int): The size of the tiles used during training.
+        augment_size (int): The size of the augmentation applied to the image.
+        n_bands (int): The number of bands in the satellite image.
+        normalization_mean (List[float]): The mean values for normalization.
+        normalization_std (List[float]): The standard deviation values for normalization.
+        sliding_window_split (bool, optional): Whether to use sliding window split. Defaults to False.
+        overlap (int, optional): Overlap size for sliding window split. Defaults to None.
 
     Returns:
         SegmentationLabeledSatelliteImage or list[SegmentationLabeledSatelliteImage]: The labeled satellite image with the predicted mask.
@@ -359,67 +234,44 @@ def predict(
 
     """
 
-    def predict_single_image(image):
-        # Retrieve satellite image
+    all_predictions = []
 
-        si = get_satellite_image(image, n_bands)
+    transform = get_transform(tiles_size, augment_size, n_bands, normalization_mean, normalization_std)
+    fs = get_file_system()
 
-        if si.array.shape[1] % tiles_size != 0:
-            raise ValueError("The dimension of the image must be divisible by the tiles size used during training.")
-        if si.array.shape[1] <= tiles_size:
-            raise ValueError("The dimension of the image should be equal to or greater than the tile size used during training.")
+    images = [images] if isinstance(images, str) else images
 
-        # Normalize image if it is not in uint8
-        if si.array.dtype is not np.dtype("uint8"):
-            si.array = cv2.normalize(si.array, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    for image in tqdm(images):
+        # Check if the image is already cached
+        cache_path = get_cache_path(image)
+        if fs.exists(cache_path):
+            logger.info(f"Loading {image} from cache.")
+            all_predictions.append(load_from_cache(image, n_bands, fs))
 
-        si_splitted = si.split(tiles_size)  # split in a list of smaller SatelliteImage objects (tiles)
+        else:
+            normalized_sis_tensor, si_splitted, _ = get_normalized_sis(
+                image, n_bands, tiles_size, normalization_mean, transform, sliding_window_split, overlap
+            )  # tensor shape (num_tiles, n_bands, augment_size, augment_size)
 
-        # Each tile is normalized + converted to tensor
-        normalized_sis = [
-            preprocess_image(
-                image=s_si,
+            prediction = make_batched_prediction(
+                normalized_si=normalized_sis_tensor,
+                model=model,
                 tiles_size=tiles_size,
-                augment_size=augment_size,
-                n_bands=n_bands,
-                normalization_mean=normalization_mean,
-                normalization_std=normalization_std,
+                batch_size=batch_size,
             )
-            for s_si in si_splitted
-        ]  # list of tensors of size (n_bands, augment_size, augment_size) ; length is number of tiles
-        normalized_sis_tensor = torch.vstack(normalized_sis)  # tensor shape (num_tiles, n_bands, augment_size, augment_size)
 
-        prediction = make_prediction(
-            normalized_si=normalized_sis_tensor,
-            model=model,
-            tiles_size=tiles_size,
-            batch_size=25,
-        )
+            lsi_splitted = [
+                SegmentationLabeledSatelliteImage(si_splitted[i], prediction[i], logits=True) for i in range(len(si_splitted))
+            ]
 
-        lsi_splitted = [
-            SegmentationLabeledSatelliteImage(si_splitted[i], prediction[i], logits=True) for i in range(len(si_splitted))
-        ]
+            lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])  # get back to full image
+            # Save predictions to cache
+            with fs.open(get_cache_path(image), "wb") as f:
+                np.save(f, lsi.label)
 
-        lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
+            all_predictions.append(lsi)
 
-        return lsi
-
-    # Check if input is a str
-    if isinstance(images, str):
-        return predict_single_image(images)
-    else:
-        return [
-            predict(
-                image,
-                model,
-                tiles_size,
-                augment_size,
-                n_bands,
-                normalization_mean,
-                normalization_std,
-            )
-            for image in tqdm(images)
-        ]
+    return all_predictions
 
 
 def subset_predictions(

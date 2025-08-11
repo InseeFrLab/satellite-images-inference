@@ -301,14 +301,10 @@ def make_prediction(
     Makes a prediction on a satellite image.
 
     Args:
-        si (SatelliteImage): The input satellite image.
         normalized_si (torch.Tensor): The preprocessed and normalized satellite image tensor (output of preprocess_image).
         model: The ML model.
         tiles_size: The size of the tiles used during training.
-        augment_size: The size of the augmentation used during training.
-        n_bands: The number of bands in the satellite image.
-        normalization_mean: The mean value used for normalization.
-        normalization_std: The standard deviation used for normalization.
+        batch_size (int): The size of the batch for prediction.
 
     Returns:
         predictions_softmaxed (np.array): The predicted mask for the satellite image.
@@ -341,7 +337,6 @@ def predict(
     n_bands: int,
     normalization_mean: List[float],
     normalization_std: List[float],
-    module_name: str,
 ):
     """
     Predicts mask for a given satellite image or a given list of given satellite image.
@@ -369,64 +364,44 @@ def predict(
 
         si = get_satellite_image(image, n_bands)
 
+        if si.array.shape[1] % tiles_size != 0:
+            raise ValueError("The dimension of the image must be divisible by the tiles size used during training.")
+        if si.array.shape[1] <= tiles_size:
+            raise ValueError("The dimension of the image should be equal to or greater than the tile size used during training.")
+
         # Normalize image if it is not in uint8
         if si.array.dtype is not np.dtype("uint8"):
             si.array = cv2.normalize(si.array, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
-        if si.array.shape[1] == tiles_size:
-            # Preprocess the image
-            normalized_si = preprocess_image(
-                image=si,
+        si_splitted = si.split(tiles_size)  # split in a list of smaller SatelliteImage objects (tiles)
+
+        # Each tile is normalized + converted to tensor
+        normalized_sis = [
+            preprocess_image(
+                image=s_si,
                 tiles_size=tiles_size,
                 augment_size=augment_size,
                 n_bands=n_bands,
                 normalization_mean=normalization_mean,
                 normalization_std=normalization_std,
             )
-            prediction = make_prediction(
-                normalized_si=normalized_si,
-                model=model,
-                tiles_size=tiles_size,
-                batch_size=25,
-            )
-            lsi = SegmentationLabeledSatelliteImage(si, prediction, logits=True)
+            for s_si in si_splitted
+        ]  # list of tensors of size (n_bands, augment_size, augment_size) ; length is number of tiles
+        normalized_sis_tensor = torch.vstack(normalized_sis)  # tensor shape (num_tiles, n_bands, augment_size, augment_size)
 
-        elif si.array.shape[1] > tiles_size:
-            if si.array.shape[1] % tiles_size != 0:
-                raise ValueError("The dimension of the image must be divisible by the tiles size used during training.")
-            else:
-                si_splitted = si.split(tiles_size)  # split in a list of smaller SatelliteImage objects (tiles)
+        prediction = make_prediction(
+            normalized_si=normalized_sis_tensor,
+            model=model,
+            tiles_size=tiles_size,
+            batch_size=25,
+        )
 
-                normalized_sis = normalized_sis = [
-                    preprocess_image(
-                        image=s_si,
-                        tiles_size=tiles_size,
-                        augment_size=augment_size,
-                        n_bands=n_bands,
-                        normalization_mean=normalization_mean,
-                        normalization_std=normalization_std,
-                    )
-                    for s_si in si_splitted
-                ]  # list of tensors of size (n_bands, augment_size, augment_size)
-                normalized_sis_tensor = torch.vstack(
-                    normalized_sis
-                )  # tensor shape (num_tiles, n_bands, augment_size, augment_size)
+        lsi_splitted = [
+            SegmentationLabeledSatelliteImage(si_splitted[i], prediction[i], logits=True) for i in range(len(si_splitted))
+        ]
 
-                prediction = make_prediction(
-                    normalized_si=normalized_sis_tensor,
-                    model=model,
-                    tiles_size=tiles_size,
-                    batch_size=25,
-                )
+        lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
 
-                lsi_splitted = [
-                    SegmentationLabeledSatelliteImage(si_splitted[i], prediction[i], logits=True) for i in range(len(si_splitted))
-                ]
-
-                lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])
-
-        else:
-            raise ValueError("The dimension of the image should be equal to or greater than the tile size used during training.")
         return lsi
 
     # Check if input is a str
@@ -442,7 +417,6 @@ def predict(
                 n_bands,
                 normalization_mean,
                 normalization_std,
-                module_name,
             )
             for image in tqdm(images)
         ]

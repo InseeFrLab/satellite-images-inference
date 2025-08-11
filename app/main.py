@@ -35,7 +35,7 @@ from app.utils import (
 
 logger = logging.getLogger(__name__)
 
-logger.info(f"proj lib ==== {os.environ["PROJ_LIB"]}")
+logger.info(f"proj lib ==== {os.environ['PROJ_LIB']}")
 
 
 @asynccontextmanager

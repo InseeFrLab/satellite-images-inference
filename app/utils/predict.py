@@ -26,7 +26,8 @@ def predict(
     normalization_std: List[float],
     sliding_window_split: bool = False,
     overlap: int = None,
-    batch_size: int = 75,
+    batch_size: int = 25,
+    device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
 ):
     """
     Predicts mask for a given satellite image or a given list of given satellite image.

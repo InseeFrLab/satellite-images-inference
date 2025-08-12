@@ -59,6 +59,7 @@ def predict(
 
     images = [images] if isinstance(images, str) else images
 
+    model = model.to(device)
     for image in tqdm(images):
         # Check if the image is already cached
         cache_path = get_cache_path(image)
@@ -72,7 +73,7 @@ def predict(
             )  # tensor shape (num_tiles, n_bands, augment_size, augment_size) + list[SatelliteImage]
 
             prediction = make_batched_prediction(
-                normalized_si=normalized_sis_tensor,
+                normalized_si=normalized_sis_tensor.to(device),
                 model=model,
                 tiles_size=tiles_size,
                 batch_size=batch_size,
@@ -103,6 +104,7 @@ def predict_batch(batch, model, tiles_size):
                 align_corners=False,
             )
             .squeeze()
+            .cpu()
             .numpy()
         )
     return prediction

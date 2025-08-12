@@ -1,40 +1,8 @@
-import geopandas as gpd
 import mlflow
-import pyarrow.parquet as pq
-from s3fs import S3FileSystem
 
-from app.utils import (
+from app.utils.data import (
     get_normalization_metrics,
 )
-
-
-def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:
-    """
-    Retrieves the filename to polygons mapping for a given department and year.
-
-    Args:
-        dep (str): The department code.
-        year (int): The year.
-        fs (S3FileSystem): The S3FileSystem object for accessing the data.
-
-    Returns:
-        gpd.GeoDataFrame: A GeoDataFrame containing the filename to polygons mapping.
-
-    """
-    # Load the filename to polygons mapping
-    data = (
-        pq.ParquetDataset(
-            "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
-            filesystem=fs,
-            filters=[("dep", "=", dep), ("year", "=", year)],
-        )
-        .read()
-        .to_pandas()
-    )
-
-    # Convert the geometry column to a GeoSeries
-    data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])
-    return gpd.GeoDataFrame(data, geometry="geometry", crs=data.CRS.unique()[0])
 
 
 def get_model_from_id(run_id: str) -> mlflow.pyfunc.PyFuncModel:

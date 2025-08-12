@@ -140,6 +140,6 @@ def make_batched_prediction(
             predictions.append(prediction)
 
     predictions = np.vstack(predictions)
-    predictions_softmaxed = softmax(prediction, axis=1)
+    predictions_softmaxed = softmax(predictions, axis=1)
 
     return predictions_softmaxed

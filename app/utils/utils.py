@@ -2,56 +2,24 @@
 Utils.
 """
 
-import json
 import os
 import tempfile
 from contextlib import contextmanager
-from typing import Dict, List
+from typing import Dict
 
 import geopandas as gpd
-import mlflow
 import numpy as np
 import pandas as pd
-import pyarrow.parquet as pq
 import rasterio
 import torch
 from astrovision.data import SegmentationLabeledSatelliteImage
-from astrovision.plot import make_mosaic
 from rasterio.features import rasterize, shapes
-from s3fs import S3FileSystem
-from scipy.special import softmax
 from shapely import make_valid
 from shapely.ops import unary_union
-from tqdm import tqdm
 
 from app.logger_config import configure_logger
-from app.utils.data import get_file_system, get_satellite_image
-from app.utils.preprocess_image import get_transform
-from app.utils.split_and_normalize import get_normalized_sis
 
 logger = configure_logger()
-
-
-def get_normalization_metrics(model_params: Dict) -> tuple:
-    """
-    Retrieves normalization metrics (mean and standard deviation) for the model.
-
-    Args:
-        model_params (Dict): A dictionary containing model parameters.
-    Returns:
-        Tuple: A tuple containing normalization mean and standard deviation.
-    """
-    normalization_mean = json.loads(model_params["normalization_mean"])
-    normalization_std = json.loads(model_params["normalization_std"])
-    n_bands = int(model_params["n_bands"])
-
-    # Extract normalization mean and standard deviation for the number of bands
-    normalization_mean, normalization_std = (
-        normalization_mean[:n_bands],
-        normalization_std[:n_bands],
-    )
-
-    return (normalization_mean, normalization_std)
 
 
 def produce_mask(
@@ -146,134 +114,6 @@ def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
         return gpd.GeoDataFrame(columns=["geometry", "label"])
 
 
-def predict_batch(batch, model, tiles_size):
-    prediction = model(batch)
-    if prediction.shape[-2:] != (tiles_size, tiles_size):
-        prediction = (
-            torch.nn.functional.interpolate(
-                prediction,
-                size=tiles_size,
-                mode="bilinear",
-                align_corners=False,
-            )
-            .squeeze()
-            .numpy()
-        )
-    return prediction
-
-
-def make_batched_prediction(
-    normalized_si: torch.Tensor,
-    model: mlflow.pyfunc.PyFuncModel,
-    tiles_size: int,
-    batch_size: int = 25,
-):
-    """
-    Makes a prediction on a satellite image.
-
-    Args:
-        normalized_si (torch.Tensor): The preprocessed and normalized satellite image tensor (output of preprocess_image).
-        model: The ML model.
-        tiles_size: The size of the tiles used during training.
-        batch_size (int): The size of the batch for prediction.
-
-    Returns:
-        predictions_softmaxed (np.array): The predicted mask for the satellite image.
-    """
-
-    n_batches = len(normalized_si) // batch_size
-    with torch.no_grad():
-        predictions = []
-        for i in tqdm(range(n_batches)):
-            batch = normalized_si[batch_size * i : batch_size * (i + 1)]
-            prediction = predict_batch(batch, model, tiles_size)
-            predictions.append(prediction)
-
-        if len(normalized_si) % batch_size != 0:
-            batch = normalized_si[batch_size * n_batches :]
-            prediction = predict_batch(batch, model, tiles_size)
-            predictions.append(prediction)
-
-    predictions = np.vstack(predictions)
-    predictions_softmaxed = softmax(prediction, axis=1)
-
-    return predictions_softmaxed
-
-
-def predict(
-    images: str | list[str],
-    model: mlflow.pyfunc.PyFuncModel,
-    tiles_size: int,
-    augment_size: int,
-    n_bands: int,
-    normalization_mean: List[float],
-    normalization_std: List[float],
-    sliding_window_split: bool = False,
-    overlap: int = None,
-    batch_size: int = 75,
-):
-    """
-    Predicts mask for a given satellite image or a given list of given satellite image.
-
-    Args:
-        images (str | list[str]): The path to the satellite image or a list of paths.
-        model (mlflow.pyfunc.PyFuncModel): The MLflow PyFuncModel object representing the model.
-        tiles_size (int): The size of the tiles used during training.
-        augment_size (int): The size of the augmentation applied to the image.
-        n_bands (int): The number of bands in the satellite image.
-        normalization_mean (List[float]): The mean values for normalization.
-        normalization_std (List[float]): The standard deviation values for normalization.
-        sliding_window_split (bool, optional): Whether to use sliding window split. Defaults to False.
-        overlap (int, optional): Overlap size for sliding window split. Defaults to None.
-
-    Returns:
-        SegmentationLabeledSatelliteImage or list[SegmentationLabeledSatelliteImage]: The labeled satellite image with the predicted mask.
-
-    Raises:
-        ValueError: If the dimension of the image is not divisible by the tile size used during training or if the dimension is smaller than the tile size.
-
-    """
-
-    all_predictions = []
-
-    transform = get_transform(tiles_size, augment_size, n_bands, normalization_mean, normalization_std)
-    fs = get_file_system()
-
-    images = [images] if isinstance(images, str) else images
-
-    for image in tqdm(images):
-        # Check if the image is already cached
-        cache_path = get_cache_path(image)
-        if fs.exists(cache_path):
-            logger.info(f"Loading {image} from cache.")
-            all_predictions.append(load_from_cache(image, n_bands, fs))
-
-        else:
-            normalized_sis_tensor, si_splitted, _ = get_normalized_sis(
-                image, n_bands, tiles_size, normalization_mean, transform, sliding_window_split, overlap
-            )  # tensor shape (num_tiles, n_bands, augment_size, augment_size)
-
-            prediction = make_batched_prediction(
-                normalized_si=normalized_sis_tensor,
-                model=model,
-                tiles_size=tiles_size,
-                batch_size=batch_size,
-            )
-
-            lsi_splitted = [
-                SegmentationLabeledSatelliteImage(si_splitted[i], prediction[i], logits=True) for i in range(len(si_splitted))
-            ]
-
-            lsi = make_mosaic(lsi_splitted, [i for i in range(n_bands)])  # get back to full image
-            # Save predictions to cache
-            with fs.open(get_cache_path(image), "wb") as f:
-                np.save(f, lsi.label)
-
-            all_predictions.append(lsi)
-
-    return all_predictions
-
-
 def subset_predictions(
     predictions: list[SegmentationLabeledSatelliteImage],
     roi: gpd.GeoDataFrame,
@@ -321,35 +161,6 @@ def subset_predictions(
     return results[~results["geometry"].is_empty]
 
 
-def get_filename_to_polygons(dep: str, year: int, fs: S3FileSystem) -> gpd.GeoDataFrame:
-    """
-    Retrieves the filename to polygons mapping for a given department and year.
-
-    Args:
-        dep (str): The department code.
-        year (int): The year.
-        fs (S3FileSystem): The S3FileSystem object for accessing the data.
-
-    Returns:
-        gpd.GeoDataFrame: A GeoDataFrame containing the filename to polygons mapping.
-
-    """
-    # Load the filename to polygons mapping
-    data = (
-        pq.ParquetDataset(
-            "projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/",
-            filesystem=fs,
-            filters=[("dep", "=", dep), ("year", "=", year)],
-        )
-        .read()
-        .to_pandas()
-    )
-
-    # Convert the geometry column to a GeoSeries
-    data["geometry"] = gpd.GeoSeries.from_wkt(data["geometry"])
-    return gpd.GeoDataFrame(data, geometry="geometry", crs=data.CRS.unique()[0])
-
-
 def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str, float]:
     """
     Compute statistics of the predictions within a region of interest (ROI).
@@ -383,44 +194,3 @@ def compute_roi_statistics(predictions: list, roi: gpd.GeoDataFrame) -> Dict[str
     roi = roi.assign(area_cluster=area_cluster, area_building=area_building, pct_building=pct_building)
 
     return roi.reset_index(drop=True)
-
-
-def get_cache_path(image: str) -> str:
-    """
-    Get the cache path for the image.
-
-    Args:
-        image (str): The image path.
-
-    Returns:
-        str: The cache path.
-    """
-    assert "MLFLOW_MODEL_NAME" in os.environ, "Please set the MLFLOW_MODEL_NAME environment variable."
-    assert "MLFLOW_MODEL_VERSION" in os.environ, "Please set the MLFLOW_MODEL_VERSION environment variable."
-
-    cache_path = os.path.dirname(image.replace(image.split("/")[1], "cache-predictions"))
-    image_name = os.path.splitext(os.path.basename(image))[0]
-    return f"{cache_path}/{os.getenv('MLFLOW_MODEL_NAME')}/{os.getenv('MLFLOW_MODEL_VERSION')}/{image_name}.npy"
-
-
-def load_from_cache(image: str, n_bands: list[int], filesystem: S3FileSystem) -> SegmentationLabeledSatelliteImage:
-    """
-    Load the image and mask from the cache.
-
-    Args:
-        image (str): The image path.
-        n_bands (list[int]): The number of bands.
-        filesystem (s3fs.S3FileSystem): The file system.
-
-    Returns:
-        SegmentationLabeledSatelliteImage: The labeled satellite image with the predicted mask.
-    """
-
-    mask_path = get_cache_path(image)
-
-    si = get_satellite_image(image, n_bands)
-    with filesystem.open(mask_path, "rb") as f:
-        mask = np.load(f)
-
-    logits = True if len(mask.shape) >= 3 else False
-    return SegmentationLabeledSatelliteImage(si, mask, logits=logits)

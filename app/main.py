@@ -93,9 +93,15 @@ def show_welcome_page():
     }
 
 
-# TODO, use request app state as only arguments of predict function to clean a bit
 @app.get("/predict_image", tags=["Predict Image"])
-async def predict_image(request: Request, image: str, polygons: bool = False) -> Dict:
+async def predict_image(
+    request: Request,
+    image: str,
+    polygons: bool = False,
+    sliding_window_split: bool = False,
+    overlap: int = None,
+    batch_size: int = 25,
+) -> Dict:
     """
     Predicts mask for a given satellite image.
 
@@ -116,7 +122,7 @@ async def predict_image(request: Request, image: str, polygons: bool = False) ->
     fs = get_file_system()
 
     if not fs.exists(get_cache_path(image)):
-        lsi = predict(
+        lsi_preds = predict(
             images=image,
             model=request.app.state.model,
             tiles_size=request.app.state.tiles_size,
@@ -124,15 +130,18 @@ async def predict_image(request: Request, image: str, polygons: bool = False) ->
             n_bands=request.app.state.n_bands,
             normalization_mean=request.app.state.normalization_mean,
             normalization_std=request.app.state.normalization_std,
-            module_name=request.app.state.module_name,
-        )
+            sliding_window_split=sliding_window_split,
+            overlap=overlap,
+            batch_size=batch_size,
+        )  # list of LabeledSatelliteImages
 
     else:
         logger.info(f"Loading prediction from cache for image: {image}")
-        lsi = load_from_cache(image, request.app.state.n_bands, fs)
+        lsi_preds = load_from_cache(image, request.app.state.n_bands, fs)
 
     # Produce mask with class IDs
-    lsi.label = produce_mask(lsi.label, request.app.state.module_name)
+    for lsi in lsi_preds:
+        lsi.label = produce_mask(lsi.label, request.app.state.module_name)
 
     if polygons:
         return JSONResponse(content=create_geojson_from_mask(lsi).to_json())

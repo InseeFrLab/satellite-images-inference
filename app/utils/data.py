@@ -62,7 +62,7 @@ def get_model(model_name: str, model_version: str) -> mlflow.pyfunc.PyFuncModel:
     """
 
     try:
-        model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
+        model = mlflow.pytorch.load_model(model_uri=f"models:/{model_name}/{model_version}")
         return model
     except Exception as error:
         raise Exception(f"Failed to fetch model {model_name} version {model_version}: {str(error)}") from error

@@ -52,6 +52,11 @@ def predict(
 
     """
 
+    if sliding_window_split and overlap is None:
+        raise ValueError("If sliding_window_split is set to True, overlap must be specified.")
+    elif not sliding_window_split and overlap is not None:
+        logger.warning("sliding_window_split is set to False: overlap will be ignored.")
+
     all_predictions = []
 
     transform = get_transform(tiles_size, augment_size, n_bands, normalization_mean, normalization_std)

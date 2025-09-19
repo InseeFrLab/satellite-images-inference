@@ -175,7 +175,7 @@ def predict_cluster(
     clusters = (
         pq.ParquetDataset("projet-slums-detection/data-clusters", filesystem=fs, filters=[("dep", "=", dep)]).read().to_pandas()
     )
-    clusters["geometry"] = gpd.GeoSeries.from_wkt(clusters["geometry"])
+    clusters["geometry"] = gpd.GeoSeries.from_wkb(clusters["geometry"])
     clusters = gpd.GeoDataFrame(clusters, geometry="geometry", crs="EPSG:4326")
 
     # Get the filename to polygons mapping

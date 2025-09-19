@@ -20,7 +20,7 @@ from osgeo import gdal
 from shapely.geometry import box
 
 from app.logger_config import configure_logger
-from app.utils import (
+from app.utils.utils import (
     compute_roi_statistics,
     create_geojson_from_mask,
     produce_mask,

@@ -175,7 +175,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dep",
         type=str,
-        choices=["MAYOTTE", "GUADELOUPE", "MARTINIQUE", "GUYANE", "REUNION", "SAINT-MARTIN"],
         default="MAYOTTE",
         help="Department to make predictions on",
         required=True,

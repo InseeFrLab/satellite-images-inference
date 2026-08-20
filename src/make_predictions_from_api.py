@@ -10,10 +10,10 @@ import pandas as pd
 import requests
 from tqdm.asyncio import tqdm
 
-from app.utils import get_file_system
+from app.utils.data import get_file_system
 
 # from src.postprocessing.postprocessing import clean_prediction
-from src.retrievals.wrappers import get_filename_to_polygons
+from app.utils.data import get_filename_to_polygons
 
 
 def save_geopackage_to_s3(gdf, s3_path, filesystem):

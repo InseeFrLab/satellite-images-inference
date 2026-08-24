@@ -6,7 +6,7 @@ import time
 import math
 
 from src.make_predictions_from_api import save_geopackage_to_s3
-from app.utils import get_file_system
+from app.utils.data import get_file_system
 
 
 def filtre_compacite(table: gpd.GeoDataFrame, seuil_compacite: str = 0.08) -> gpd.GeoDataFrame:
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     # Get info of the model
     model_info = requests.get("https://satellite-images-inference.lab.sspcloud.fr/").json()
 
-    fs = get_file_system()
+    fs = get_file_system_local()
 
     get_build_evol(dep, year, model_info["model_name"], model_info["model_version"], fs)
 

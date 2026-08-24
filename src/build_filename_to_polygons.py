@@ -77,7 +77,6 @@ while len(list_missing_files) > len(file_retrieved):
     result = pqdm(file_missing, create_polygon, n_jobs=50)
     for i in range(len(result)):
         tmp = result[i]
-        print(tmp)
         if not result[i]["CRS"].empty:
             tmp.crs = None
             file_retrieved.append(tmp.loc[0, "filename"])

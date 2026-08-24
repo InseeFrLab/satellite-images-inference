@@ -3,6 +3,7 @@ import os
 import s3fs
 from osgeo import gdal
 from pqdm.processes import pqdm
+import argparse
 
 
 def convert_jp2_to_geotiff(args):
@@ -35,38 +36,54 @@ def convert_jp2_to_geotiff(args):
     driver = gdal.GetDriverByName("GTiff")
 
     # Specify the S3 path where you want to save the file
-    driver.CreateCopy(f"/vsis3/{file_output}", ds)
+    driver.CreateCopy(f"{file_output}", ds)
     # Close the datasets
     ds = None
     return {"result": "OK", "file": file_output}
 
 
-gdal.UseExceptions()
-os.environ["CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE"] = "YES"
+if __name__ == "__main__":
+    # Command-line arguments
+    parser = argparse.ArgumentParser(description="Converts JP2 images to TIF")
 
-fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
+    parser.add_argument(
+        "--folder_path",
+        type=str,
+        help="Folder containing the images to convert",
+        required=True,
+    )
 
-parent = os.path.abspath("..")
-dossier_images_jp2_local = parent + "/2025/MOSA"  # a modifier
-destination_s3 = "MAYOTTE/2025"  # a modifier
+    args = parser.parse_args()
 
-list_jp2 = [file for file in os.listdir(dossier_images_jp2_local) if file.endswith(".jp2")]
+    gdal.UseExceptions()
+    gdal.SetConfigOption("GTIFF_SRS_SOURCE", "EPSG")
+    os.environ["CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE"] = "YES"
 
-list_converted = []
+    fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
 
-while len(list_jp2) > len(list_converted):
-    file_missing_input = [
-        f"{dossier_images_jp2_local}/{file}" for file in list_jp2 if file.replace(".jp2", ".tif") not in list_converted
-    ]
-    file_missing_output = [
-        f"projet-slums-detection/data-raw/PLEIADES/{destination_s3}/{file.replace('.jp2', '.tif')}"
-        for file in list_jp2
-        if file.replace(".jp2", ".tif") not in list_converted
-    ]
-    result = pqdm(zip(file_missing_input, file_missing_output), convert_jp2_to_geotiff, n_jobs=50)
-    for i in range(len(result)):
-        if isinstance(result[i], RuntimeError):
-            continue
-        else:
-            if result[i]["result"] != "FAILED":
-                list_converted.append(result[i]["file"].split("/")[-1])
+    parent = os.path.abspath("..")
+    dossier_images_jp2_local = parent + "/" + args.folder_path
+    destination_images = dossier_images_jp2_local + "_MODIF"
+
+    os.makedirs(destination_images)
+
+    list_jp2 = [file for file in os.listdir(dossier_images_jp2_local) if file.endswith(".jp2")]
+
+    list_converted = []
+
+    while len(list_jp2) > len(list_converted):
+        file_missing_input = [
+            f"{dossier_images_jp2_local}/{file}" for file in list_jp2 if file.replace(".jp2", ".tif") not in list_converted
+        ]
+        file_missing_output = [
+            f"{destination_images}/{file.replace('.jp2', '.tif')}"
+            for file in list_jp2
+            if file.replace(".jp2", ".tif") not in list_converted
+        ]
+        result = pqdm(zip(file_missing_input, file_missing_output), convert_jp2_to_geotiff, n_jobs=50)
+        for i in range(len(result)):
+            if isinstance(result[i], RuntimeError):
+                continue
+            else:
+                if result[i]["result"] != "FAILED":
+                    list_converted.append(result[i]["file"].split("/")[-1])

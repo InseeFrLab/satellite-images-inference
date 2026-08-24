@@ -74,7 +74,7 @@ def predict(
 
         else:
             normalized_sis_tensor, si_splitted = get_normalized_sis(
-                image, n_bands, tiles_size, normalization_mean, transform, sliding_window_split, overlap
+                image, n_bands, tiles_size, normalization_mean, transform, sliding_window_split, overlap=overlap,
             )  # tensor shape (num_tiles, n_bands, augment_size, augment_size) + list[SatelliteImage]
 
             prediction = make_batched_prediction(

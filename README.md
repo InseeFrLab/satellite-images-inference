@@ -21,6 +21,8 @@ This project is designed to perform segmentation inference on satellite images u
 ## Getting started
 
 ```
+git clone https://github.com/InseeFrLab/satellite-images-inference.git
+cd satellite-images-inference/
 uv sync
 export PROJ_LIB=$(uv run python -c "from osgeo import __file__ as f; import os; print(os.path.join(os.path.dirname(f), 'data', 'proj'))")
 ```
@@ -44,6 +46,15 @@ uv run -m src.write_jp2_to_tiff --folder_path <local_folder>
 
 5. Copy the new images to S3, following this structure:
 `projet-slums-detection/data-raw/PLEIADES/<dep>/<year>/`
+
+6. Create the data-roi geojson:
+```{bash}
+uv run -m src.build_data_roi --dep_code <Dep code>
+```
+For Corsica, enter '2A|2B' as dep_code, and the ROI for the entire island of Corsica will be retrieved.
+
+7. Copy the geojson to S3, in this folder:
+`projet-slums-detection/data-roi/`
 
 
 ## 🛠️ Usage

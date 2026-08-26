@@ -121,7 +121,7 @@ if __name__ == "__main__":
     # Get info of the model
     model_info = requests.get("https://satellite-images-inference.lab.sspcloud.fr/").json()
 
-    fs = get_file_system()
+    fs = get_file_system_local()
 
     get_build_evol(dep, year, model_info["model_name"], model_info["model_version"], fs)
 

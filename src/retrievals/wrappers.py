@@ -1,7 +1,4 @@
-import geopandas as gpd
 import mlflow
-import pyarrow.parquet as pq
-from s3fs import S3FileSystem
 
 from app.utils.utils import (
     get_normalization_metrics,

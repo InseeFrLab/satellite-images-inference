@@ -15,6 +15,7 @@ import numpy as np
 import pyarrow.parquet as pq
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
+from mlflow.tracking import MlflowClient
 from osgeo import gdal
 from shapely.geometry import box
 
@@ -22,20 +23,22 @@ from app.logger_config import configure_logger
 from app.utils.utils import (
     compute_roi_statistics,
     create_geojson_from_mask,
+    produce_mask,
+    subset_predictions,
+)
+from app.utils.data import (
     get_cache_path,
     get_file_system,
     get_filename_to_polygons,
     get_model,
     get_normalization_metrics,
     load_from_cache,
-    predict,
-    produce_mask,
-    subset_predictions,
 )
+from app.utils.predict import predict
 
 logger = logging.getLogger(__name__)
 
-logger.info(f"proj lib ==== {os.environ["PROJ_LIB"]}")
+logger.info(f"proj lib ==== {os.environ['PROJ_LIB']}")
 
 
 @asynccontextmanager
@@ -44,13 +47,28 @@ async def lifespan(app: FastAPI):
     configure_logger()
     logger.info("🚀 Starting API lifespan")
 
-    app.state.model = get_model(os.environ["MLFLOW_MODEL_NAME"], os.environ["MLFLOW_MODEL_VERSION"])
-    model_params = mlflow.get_run(app.state.model.metadata.run_id).data.params
+    model_name = os.environ["MLFLOW_MODEL_NAME"]
+    model_version = os.environ["MLFLOW_MODEL_VERSION"]
+
+    # Get model
+    app.state.model = get_model(model_name, model_version)
+
+    # Get model parameters
+    client = MlflowClient()
+    model_version_info = client.get_model_version(model_name, model_version)
+    run_id = model_version_info.run_id
+    model_params = mlflow.get_run(run_id).data.params
+
+    # Store params in app.state
     app.state.n_bands = int(model_params["n_bands"])
     app.state.tiles_size = int(model_params["tiles_size"])
     app.state.augment_size = int(model_params["augment_size"])
     app.state.module_name = model_params["module_name"]
-    app.state.normalization_mean, app.state.normalization_std = get_normalization_metrics(model_params)
+    (
+        app.state.normalization_mean,
+        app.state.normalization_std,
+    ) = get_normalization_metrics(model_params)
+
     yield
     logger.info("🛑 Shutting down API lifespan")
 
@@ -75,9 +93,15 @@ def show_welcome_page():
     }
 
 
-# TODO, use request app state as only arguments of predict function to clean a bit
 @app.get("/predict_image", tags=["Predict Image"])
-async def predict_image(request: Request, image: str, polygons: bool = False) -> Dict:
+async def predict_image(
+    request: Request,
+    image: str,
+    polygons: bool = False,
+    sliding_window_split: bool = False,
+    overlap: int = None,
+    batch_size: int = 25,
+) -> Dict:
     """
     Predicts mask for a given satellite image.
 
@@ -98,7 +122,7 @@ async def predict_image(request: Request, image: str, polygons: bool = False) ->
     fs = get_file_system()
 
     if not fs.exists(get_cache_path(image)):
-        lsi = predict(
+        lsi_preds = predict(
             images=image,
             model=request.app.state.model,
             tiles_size=request.app.state.tiles_size,
@@ -106,18 +130,18 @@ async def predict_image(request: Request, image: str, polygons: bool = False) ->
             n_bands=request.app.state.n_bands,
             normalization_mean=request.app.state.normalization_mean,
             normalization_std=request.app.state.normalization_std,
-            module_name=request.app.state.module_name,
-        )
-        # Save predictions to cache
-        with fs.open(get_cache_path(image), "wb") as f:
-            np.save(f, lsi.label)
+            sliding_window_split=sliding_window_split,
+            overlap=overlap,
+            batch_size=batch_size,
+        )  # list of LabeledSatelliteImages
 
     else:
         logger.info(f"Loading prediction from cache for image: {image}")
-        lsi = load_from_cache(image, request.app.state.n_bands, fs)
+        lsi_preds = load_from_cache(image, request.app.state.n_bands, fs)
 
     # Produce mask with class IDs
-    lsi.label = produce_mask(lsi.label, request.app.state.module_name)
+    for lsi in lsi_preds:
+        lsi.label = produce_mask(lsi.label, request.app.state.module_name)
 
     if polygons:
         return JSONResponse(content=create_geojson_from_mask(lsi).to_json())

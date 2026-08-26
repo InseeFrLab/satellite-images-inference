@@ -19,7 +19,7 @@ from osgeo import gdal
 from shapely.geometry import box
 
 from app.logger_config import configure_logger
-from app.utils import (
+from app.utils.utils import (
     compute_roi_statistics,
     create_geojson_from_mask,
     get_cache_path,
@@ -151,7 +151,7 @@ def predict_cluster(
     clusters = (
         pq.ParquetDataset("projet-slums-detection/data-clusters", filesystem=fs, filters=[("dep", "=", dep)]).read().to_pandas()
     )
-    clusters["geometry"] = gpd.GeoSeries.from_wkt(clusters["geometry"])
+    clusters["geometry"] = gpd.GeoSeries.from_wkb(clusters["geometry"])
     clusters = gpd.GeoDataFrame(clusters, geometry="geometry", crs="EPSG:4326")
 
     # Get the filename to polygons mapping

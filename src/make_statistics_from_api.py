@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 import requests
 from tqdm.asyncio import tqdm
 
-from app.utils import get_file_system
+from app.utils.utils import get_file_system
 
 
 async def fetch(session, url, **kwargs):

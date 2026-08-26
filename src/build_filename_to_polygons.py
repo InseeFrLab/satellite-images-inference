@@ -61,7 +61,7 @@ def get_satellite_image(image_path: str, n_bands: int):
 
 fs = s3fs.S3FileSystem(client_kwargs={"endpoint_url": "https://" + "minio.lab.sspcloud.fr"})
 
-list_filename = [f for d in ["MAYOTTE", "MARTINIQUE", "GUADELOUPE", "REUNION", "GUYANE"] for f in fs.glob(f"projet-slums-detection/data-raw/PLEIADES/{d}/**/*.tif")]
+list_filename = [f for d in ["MAYOTTE", "MARTINIQUE", "GUADELOUPE", "REUNION", "GUYANE", "CHARENTE-MARITIME", "CORSE"] for f in fs.glob(f"projet-slums-detection/data-raw/PLEIADES/{d}/**/*.tif")]
 
 current_filename_to_poly = (
     pq.ParquetDataset("projet-slums-detection/data-raw/PLEIADES/filename-to-polygons/", filesystem=fs).read().to_pandas()
@@ -81,7 +81,6 @@ while len(list_missing_files) > len(file_retrieved):
             tmp.crs = None
             file_retrieved.append(tmp.loc[0, "filename"])
             list_gpd.append(tmp)
-
 
 merged_gdf = gpd.GeoDataFrame(pd.concat(list_gpd, ignore_index=True))
 merged_gdf["geometry"] = merged_gdf.geometry.to_wkt()

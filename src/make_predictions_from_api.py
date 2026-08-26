@@ -10,10 +10,8 @@ import pandas as pd
 import requests
 from tqdm.asyncio import tqdm
 
-from app.utils import get_file_system
-
+from app.utils.utils import get_file_system, get_filename_to_polygons
 # from src.postprocessing.postprocessing import clean_prediction
-from src.retrievals.wrappers import get_filename_to_polygons
 
 
 def save_geopackage_to_s3(gdf, s3_path, filesystem):
@@ -174,7 +172,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dep",
         type=str,
-        choices=["MAYOTTE", "GUADELOUPE", "MARTINIQUE", "GUYANE", "REUNION", "SAINT-MARTIN"],
         default="MAYOTTE",
         help="Department to make predictions on",
         required=True,

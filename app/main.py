@@ -154,7 +154,7 @@ def predict_cluster(
     request: Request,
     cluster_id: str,
     year: int = Query(2022, ge=2017, le=datetime.now().year + 1),
-    dep: str = Query("MAYOTTE",
+    dep: str = Query("MAYOTTE")
 ) -> Dict:
     """
     Predicts cluster for a given cluster ID, year, and department.

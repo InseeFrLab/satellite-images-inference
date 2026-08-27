@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 import requests
 from tqdm.asyncio import tqdm
 
-from app.utils.utils import get_file_system
+from app.utils.data import get_file_system
 
 
 async def fetch(session, url, **kwargs):
@@ -171,7 +171,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dep",
         type=str,
-        choices=["MAYOTTE", "GUADELOUPE", "MARTINIQUE", "GUYANE", "REUNION", "SAINT-MARTIN"],
         default="MAYOTTE",
         help="Department to make predictions on",
         required=True,

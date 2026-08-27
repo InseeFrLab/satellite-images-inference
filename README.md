@@ -83,6 +83,24 @@ Once registered, you can run inference on these new images using the API:
 uv run -m src.make_predictions_from_api --dep <dep> --year <year>
 ```
 
+### Step 3: Make statistics on building area
+
+Create the data-clusters parquet folder:
+```{bash}
+uv run -m src.build_data_clusters --dep_code <Dep code> --dep_name <Dep name>
+```
+For Corsica, enter '2A|2B' as dep_code, and the ROI for the entire island of Corsica will be retrieved.
+
+```bash
+uv run -m src.make_statistics_from_api --dep <dep> --year <year>
+```
+
+### Step 4: Constructions/destructions of buildings
+
+```bash
+uv run -m src.constructions_destructions --dep <dep> --year <year>
+```
+
 ## 🌐 API
 
 All API-related code is in the app/ folder, built using FastAPI ⚡. The key files include:

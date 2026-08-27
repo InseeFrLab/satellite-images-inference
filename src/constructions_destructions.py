@@ -6,7 +6,7 @@ import time
 import math
 
 from src.make_predictions_from_api import save_geopackage_to_s3
-from app.utils.utils import get_file_system
+from app.utils.data import get_file_system
 
 
 def filtre_compacite(table: gpd.GeoDataFrame, seuil_compacite: str = 0.08) -> gpd.GeoDataFrame:

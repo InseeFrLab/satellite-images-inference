@@ -2,7 +2,7 @@ import geopandas as gpd
 import unicodedata
 import argparse
 
-from app.utils.utils import get_file_system
+from app.utils.data import get_file_system
 
 
 dep_code_to_crs = {
@@ -62,11 +62,11 @@ if __name__ == "__main__":
 
     gdf_roi = gpd.GeoDataFrame(
         {
-            "ID": ["DEPARTEMENT_"+dep.code],
+            "ID": ["DEPARTEMENT_"+dep_merge.code],
             "NOM_M": [dep_name_norm],
             "NOM": [dep_name],
-            "INSEE_REG": [dep.region],
-            "geometry": [dep.geometry.values[0]],
+            "INSEE_REG": [dep_merge.region],
+            "geometry": [dep_merge.geometry.values[0]],
         },
         crs=epsg,
     )

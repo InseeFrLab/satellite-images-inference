@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 from tqdm.asyncio import tqdm
 
-from app.utils.utils import get_file_system, get_filename_to_polygons
+from app.utils.data import get_file_system, get_filename_to_polygons
 # from src.postprocessing.postprocessing import clean_prediction
 
 

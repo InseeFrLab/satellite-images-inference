@@ -154,7 +154,7 @@ def predict_cluster(
     request: Request,
     cluster_id: str,
     year: int = Query(2022, ge=2017, le=datetime.now().year + 1),
-    dep: str = Query("MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION|SAINT-MARTIN)$"),
+    dep: str = Query("MAYOTTE",
 ) -> Dict:
     """
     Predicts cluster for a given cluster ID, year, and department.
@@ -252,8 +252,8 @@ def predict_bbox(
     ymin: float,
     ymax: float,
     epsg: int = Query(4326, ge=0),
-    year: int = Query(2022, ge=2017, le=2023),
-    dep: str = Query("MAYOTTE", regex="^(MAYOTTE|GUADELOUPE|MARTINIQUE|GUYANE|REUNION)$"),
+    year: int = Query(2022),
+    dep: str = Query("MAYOTTE"),
 ) -> Dict:
     """
     Predicts the bounding box for satellite images based on the given coordinates.

@@ -24,7 +24,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: rayaberova/satellite-images-inference
+          images: rayaberova/satellite-images-inferences
 
       - name: Make free space
         # https://github.com/actions/virtual-environments/issues/2840

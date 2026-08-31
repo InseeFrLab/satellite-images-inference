@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from mlflow.tracking import MlflowClient
 from osgeo import gdal
 from shapely.geometry import box
+import pandas as pd
 
 from app.logger_config import configure_logger
 from app.utils.utils import (
@@ -123,8 +124,10 @@ async def predict_image(
 
     cache_image_path = get_cache_path(image)
 
+    lsi_preds = []
+
     if not fs.exists(cache_image_path):
-        lsi = predict(
+        lsi_preds.append(predict(
             images=image,
             model=request.app.state.model,
             tiles_size=request.app.state.tiles_size,
@@ -135,19 +138,29 @@ async def predict_image(
             sliding_window_split=sliding_window_split,
             overlap=overlap,
             batch_size=batch_size,
-        )  # list of LabeledSatelliteImages
+        ))  # list of LabeledSatelliteImages
 
     else:
         logger.info(f"Loading prediction from cache for image: {cache_image_path}")
-        lsi = load_from_cache(image, request.app.state.n_bands, fs)
+        lsi_preds.append(load_from_cache(image, request.app.state.n_bands, fs))
 
     # Produce mask with class IDs
-    lsi.label = produce_mask(lsi.label, request.app.state.module_name)
-
     if polygons:
-        return JSONResponse(content=create_geojson_from_mask(lsi).to_json())
+        gdfs = [
+            create_geojson_from_mask(lsi)
+            for lsi in lsi_preds
+        ]
+
+        gdf = gpd.GeoDataFrame(
+            pd.concat(gdfs, ignore_index=True),
+            crs=gdfs[0].crs
+        )
+
+        return JSONResponse(content=gdf.to_json())
     else:
-        return {"mask": lsi.label.tolist()}
+        return {
+            "mask": [lsi.label.tolist() for lsi in lsi_preds]
+        }
 
 
 @app.get("/predict_cluster", tags=["Predict Cluster"])

@@ -19,6 +19,7 @@ from mlflow.tracking import MlflowClient
 from osgeo import gdal
 from shapely.geometry import box
 import pandas as pd
+from astrovision.plot import make_mosaic
 
 from app.logger_config import configure_logger
 from app.utils.utils import (
@@ -124,7 +125,7 @@ async def predict_image(
 
     cache_image_path = get_cache_path(image)
 
-    lsi_preds = []
+    lsi = None
 
     if not fs.exists(cache_image_path):
         lsi_preds = predict(
@@ -140,27 +141,17 @@ async def predict_image(
             batch_size=batch_size,
         )  # list of LabeledSatelliteImages
 
+        lsi = make_mosaic(lsi_preds, [i for i in range(request.app.staten_bands)])
+
     else:
         logger.info(f"Loading prediction from cache for image: {cache_image_path}")
-        lsi_preds.append(load_from_cache(image, request.app.state.n_bands, fs))
+        lsi = load_from_cache(image, request.app.state.n_bands, fs)
 
     # Produce mask with class IDs
     if polygons:
-        gdfs = [
-            create_geojson_from_mask(lsi)
-            for lsi in lsi_preds
-        ]
-
-        gdf = gpd.GeoDataFrame(
-            pd.concat(gdfs, ignore_index=True),
-            crs=gdfs[0].crs
-        )
-
-        return JSONResponse(content=gdf.to_json())
+        return JSONResponse(content=create_geojson_from_mask(lsi).to_json())
     else:
-        return {
-            "mask": [lsi.label.tolist() for lsi in lsi_preds]
-        }
+        return {"mask": lsi.label.tolist()}
 
 
 @app.get("/predict_cluster", tags=["Predict Cluster"])

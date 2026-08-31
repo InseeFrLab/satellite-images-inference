@@ -144,7 +144,7 @@ async def predict_image(
         logger.info(f"lsi_preds type: {type(lsi_preds)}")
         logger.info(f"lsi_preds value: {lsi_preds}")
 
-        lsi_preds.append(load_from_cache(cache_image_path, request.app.state.n_bands, fs))
+        lsi_preds.append(load_from_cache(image, request.app.state.n_bands, fs))
 
     # Produce mask with class IDs
     for lsi in lsi_preds:

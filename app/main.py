@@ -190,10 +190,10 @@ def predict_cluster(
         pq.ParquetDataset("projet-slums-detection/data-clusters", filesystem=fs, filters=[("dep", "=", dep)]).read().to_pandas()
     )
     clusters["geometry"] = gpd.GeoSeries.from_wkb(clusters["geometry"])
-    clusters = gpd.GeoDataFrame(clusters, geometry="geometry", crs="EPSG:4326")
 
     # Get the filename to polygons mapping
     filename_table = get_filename_to_polygons(dep, year, fs)
+    clusters = gpd.GeoDataFrame(clusters, geometry="geometry", crs=filename_table.crs)
 
     # Get the selected cluster
     selected_cluster = clusters.loc[clusters["ident_ilot"] == cluster_id].to_crs(filename_table.crs)

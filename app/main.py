@@ -123,10 +123,8 @@ async def predict_image(
 
     cache_image_path = get_cache_path(image)
 
-    lsi_preds = []
-
     if not fs.exists(cache_image_path):
-        lsi_preds.append(predict(
+        lsi = predict(
             images=image,
             model=request.app.state.model,
             tiles_size=request.app.state.tiles_size,
@@ -137,18 +135,14 @@ async def predict_image(
             sliding_window_split=sliding_window_split,
             overlap=overlap,
             batch_size=batch_size,
-        ))  # list of LabeledSatelliteImages
+        )  # list of LabeledSatelliteImages
 
     else:
         logger.info(f"Loading prediction from cache for image: {cache_image_path}")
-        logger.info(f"lsi_preds type: {type(lsi_preds)}")
-        logger.info(f"lsi_preds value: {lsi_preds}")
-
-        lsi_preds.append(load_from_cache(image, request.app.state.n_bands, fs))
+        lsi = load_from_cache(image, request.app.state.n_bands, fs)
 
     # Produce mask with class IDs
-    for lsi in lsi_preds:
-        lsi.label = produce_mask(lsi.label, request.app.state.module_name)
+    lsi.label = produce_mask(lsi.label, request.app.state.module_name)
 
     if polygons:
         return JSONResponse(content=create_geojson_from_mask(lsi).to_json())

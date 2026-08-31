@@ -121,7 +121,9 @@ async def predict_image(
 
     fs = get_file_system()
 
-    if not fs.exists(get_cache_path(image)):
+    cache_image_path = get_cache_path(image)
+
+    if not fs.exists(cache_image_path):
         lsi_preds = predict(
             images=image,
             model=request.app.state.model,
@@ -136,8 +138,11 @@ async def predict_image(
         )  # list of LabeledSatelliteImages
 
     else:
-        logger.info(f"Loading prediction from cache for image: {image}")
-        lsi_preds = [load_from_cache(image, request.app.state.n_bands, fs)]
+        logger.info(f"Loading prediction from cache for image: {cache_image_path}")
+        logger.info(f"lsi_preds type: {type(lsi_preds)}")
+        logger.info(f"lsi_preds value: {lsi_preds}")
+
+        lsi_preds = [load_from_cache(cache_image_path, request.app.state.n_bands, fs)]
 
     # Produce mask with class IDs
     for lsi in lsi_preds:

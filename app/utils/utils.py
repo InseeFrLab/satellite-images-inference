@@ -79,6 +79,25 @@ def create_geojson_from_mask(lsi: SegmentationLabeledSatelliteImage) -> str:
     Returns:
         A Geopandas representing the clusters with their respective labels.
     """
+
+    label = lsi.label
+
+    # Si la prédiction est de forme (1, C, H, W),
+    # on récupère l'ID de la classe ayant la probabilité maximale.
+    if label.ndim == 4:
+        label = np.argmax(label, axis=1).squeeze(0)
+
+    # Si la prédiction est de forme (1, H, W)
+    elif label.ndim == 3:
+        label = label.squeeze(0)
+
+    if label.ndim != 2:
+        raise ValueError(
+            f"Expected a 2D mask, got shape {label.shape}"
+        )
+
+    lsi.label = label
+
     # Convert label to uint8
     lsi.label = lsi.label.astype("uint8")
 

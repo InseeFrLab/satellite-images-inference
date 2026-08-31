@@ -127,7 +127,7 @@ async def predict_image(
     lsi_preds = []
 
     if not fs.exists(cache_image_path):
-        lsi_preds.append(predict(
+        lsi_preds = predict(
             images=image,
             model=request.app.state.model,
             tiles_size=request.app.state.tiles_size,
@@ -138,7 +138,7 @@ async def predict_image(
             sliding_window_split=sliding_window_split,
             overlap=overlap,
             batch_size=batch_size,
-        ))  # list of LabeledSatelliteImages
+        )  # list of LabeledSatelliteImages
 
     else:
         logger.info(f"Loading prediction from cache for image: {cache_image_path}")
